@@ -1,0 +1,60 @@
+#include "settingdialog.h"
+#include "ui_settingdialog.h"
+
+SettingDialog::SettingDialog(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::SettingDialog)
+{
+    ui->setupUi(this);
+    ui->port_spinBox->setValue(DEFAULT_CLIENT_PORT);
+}
+
+SettingDialog::~SettingDialog()
+{
+    delete ui;
+}
+
+void SettingDialog::on_buttonBox_accepted()
+{
+    emit sendSettingData(static_cast<uint16_t>(ui->port_spinBox->value()),
+                         ui->ip_comboBox->currentText());
+}
+
+void SettingDialog::refreshIPAddress(void)
+{
+    ui->ip_comboBox->clear();
+    QList<QHostAddress> address = QNetworkInterface().allAddresses();
+    for (uint8_t i = 0; i < address.length(); i++)
+    {
+        if (address.at(i).protocol() == QAbstractSocket::IPv4Protocol)
+        {
+            ui->ip_comboBox->addItem(address.at(i).toString());
+        }
+    }
+
+    for (uint8_t i = 0; i < address.length(); i++)
+    {
+        if (g_setting.clientIP == address.at(i).toString())
+        {
+            ui->ip_comboBox->setCurrentText(g_setting.clientIP);
+        }
+    }
+}
+
+void SettingDialog::on_refresh_pushButton_clicked()
+{
+    refreshIPAddress();
+}
+
+void SettingDialog::showEvent(QShowEvent *)
+{
+    if (g_status == TASK_STATUS::NO_MODEL || g_status == TASK_STATUS::NO_DEVICE)
+    {
+        ui->network_groupBox->setEnabled(true);
+    }
+    else
+    {
+        ui->network_groupBox->setEnabled(false);
+        ui->network_groupBox->setTitle("Network (available before add device)");
+    }
+}
