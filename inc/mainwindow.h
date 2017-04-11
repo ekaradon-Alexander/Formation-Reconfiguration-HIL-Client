@@ -50,7 +50,7 @@ private:
     SettingDialog *settingDialog;
 
     QUdpSocket *sender;
-    uint16_t receivePort;
+    // uint16_t receivePort;
 
     QVector<UAVModel *> models;
     QVector<UAVDevice *> devices;
