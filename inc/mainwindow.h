@@ -12,6 +12,7 @@
 #include <modelviewdialog.h>
 #include <settingdialog.h>
 #include <deviceviewdialog.h>
+#include <missiondialog.h>
 
 #include <QtNetwork>
 #include <qvector.h>
@@ -48,6 +49,7 @@ private:
     ModelViewDialog *modelViewDialog;
     DeviceViewDialog *deviceViewDialog;
     SettingDialog *settingDialog;
+    MissionDialog *missionDialog;
 
     QUdpSocket *sender;
     // uint16_t receivePort;
@@ -64,7 +66,7 @@ private:
 private:
     void stateNoModel(void);
     void stateNoDevice(void);
-    void stateNoTask(void);
+    void stateNoMission(void);
 
 private:
     bool validNewModel(uint8_t nState, uint8_t nControl, QString modelPath);
@@ -75,6 +77,7 @@ private slots:
                              QString modelPath, QString modelName);
     void on_newDevAdded(uint8_t ID, uint8_t model, QString IP, uint16_t port);
     void on_newSettingReceived(uint16_t clientPort, QString clientIP);
+    void on_newMissionReceived(QVector<QString> initialData, QVector<QString> targetData);
 
     void on_newModelOutputGet();
     void on_addDeviceButton_clicked();
@@ -83,6 +86,7 @@ private slots:
     void on_controllerMessageReceived(QByteArray msg);
     void on_actionSet_triggered();
     void on_actionShow_All_Devices_triggered();
+    void on_taskButton_clicked();
 };
 
 #endif // MAINWINDOW_H

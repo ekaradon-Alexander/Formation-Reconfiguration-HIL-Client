@@ -29,6 +29,10 @@ MainWindow::MainWindow(QWidget *parent) :
     modelViewDialog = new ModelViewDialog();
     deviceViewDialog = new DeviceViewDialog();
 
+    missionDialog = new MissionDialog();
+    connect(missionDialog, SIGNAL(sendNewMissionData(QVector<QString>, QVector<QString>)),
+            this, SLOT(on_newMissionReceived(QVector<QString>, QVector<QString>)));
+
     sender = new QUdpSocket();
     stateNoModel();
 
@@ -82,9 +86,9 @@ void MainWindow::stateNoDevice(void)
 /**
  * @brief change system status to NO_TASK
  */
-void MainWindow::stateNoTask(void)
+void MainWindow::stateNoMission(void)
 {
-    g_status = TASK_STATUS::NO_TASK;
+    g_status = TASK_STATUS::NO_MISSION;
 
     ui->addDeviceButton->setEnabled(true);
     ui->taskButton->setEnabled(true);
@@ -132,6 +136,18 @@ void MainWindow::on_newSettingReceived(uint16_t clientPort, QString clientIP)
 {
     g_setting.clientPort = clientPort;
     g_setting.clientIP = clientIP;
+}
+
+void MainWindow::on_newMissionReceived(QVector<QString> initialData, QVector<QString> targetData)
+{
+    for (int i = 0; i < initialData.length(); i++)
+    {
+        qDebug() << initialData.at(i);
+    }
+    for (int i = 0; i < targetData.length(); i++)
+    {
+        qDebug() << targetData.at(i);
+    }
 }
 
 /**
@@ -264,9 +280,15 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
                                                  models[temp->model]->modelName,
                                                  temp->IP,
                                                  temp->port);
+                    missionDialog->addNewItem(temp->ID, models[temp->model]->modelName);
                     devicesWaitForValid.removeAt(i);
                     break;
                 }
+            }
+
+            if (g_status == TASK_STATUS::NO_DEVICE)
+            {
+                stateNoMission();
             }
         }; break;
     }
@@ -296,4 +318,9 @@ void MainWindow::on_actionSet_triggered()
 void MainWindow::on_actionShow_All_Devices_triggered()
 {
     deviceViewDialog->exec();
+}
+
+void MainWindow::on_taskButton_clicked()
+{
+    missionDialog->exec();
 }

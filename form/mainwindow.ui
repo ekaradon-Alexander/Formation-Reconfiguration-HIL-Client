@@ -41,7 +41,7 @@
       <item row="0" column="2">
        <widget class="QPushButton" name="taskButton">
         <property name="text">
-         <string>Task</string>
+         <string>Mission</string>
         </property>
        </widget>
       </item>

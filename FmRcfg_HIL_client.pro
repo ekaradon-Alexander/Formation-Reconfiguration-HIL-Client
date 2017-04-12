@@ -24,10 +24,10 @@ SOURCES += \
     src/mainwindow.cpp \
     src/modelviewdialog.cpp \
     src/settingdialog.cpp \
-    src/uav.cpp \
     src/uavdevice.cpp \
     src/uavmodel.cpp \
-    src/udpthread.cpp
+    src/udpthread.cpp \
+    src/missiondialog.cpp
 
 HEADERS += \
     inc/adddevicedialog.h \
@@ -38,10 +38,10 @@ HEADERS += \
     inc/mainwindow.h \
     inc/modelviewdialog.h \
     inc/settingdialog.h \
-    inc/uav.h \
     inc/uavdevice.h \
     inc/uavmodel.h \
-    inc/udpthread.h
+    inc/udpthread.h \
+    inc/missiondialog.h
 
 FORMS += \
     form/adddevicedialog.ui \
@@ -49,4 +49,5 @@ FORMS += \
     form/deviceviewdialog.ui \
     form/mainwindow.ui \
     form/modelviewdialog.ui \
-    form/settingdialog.ui
+    form/settingdialog.ui \
+    form/missiondialog.ui
