@@ -27,7 +27,8 @@ SOURCES += \
     src/uavdevice.cpp \
     src/uavmodel.cpp \
     src/udpthread.cpp \
-    src/missiondialog.cpp
+    src/missiondialog.cpp \
+    src/mission.cpp
 
 HEADERS += \
     inc/adddevicedialog.h \
@@ -41,7 +42,8 @@ HEADERS += \
     inc/uavdevice.h \
     inc/uavmodel.h \
     inc/udpthread.h \
-    inc/missiondialog.h
+    inc/missiondialog.h \
+    inc/mission.h
 
 FORMS += \
     form/adddevicedialog.ui \

@@ -42,15 +42,32 @@ void MissionDialog::addNewItem(uint8_t ID, QString modelName)
 
 void MissionDialog::on_buttonBox_accepted()
 {
+    QVector<uint8_t> initialID;
     QVector<QString> initialData;
     for (uint8_t i = 0; i < ui->initialTableWidget->rowCount(); i++)
     {
+        if (ui->initialTableWidget->item(i, 2) == NULL)
+        {
+            QMessageBox::critical(0, "ERROR", "Unable to add mission item!",
+                                  QMessageBox::Ok);
+            return;
+        }
+        initialID.append(ui->initialTableWidget->item(i, 0)->text().toInt());
         initialData.append(ui->initialTableWidget->item(i, 2)->text());
     }
+    QVector<uint8_t> targetID;
     QVector<QString> targetData;
     for (uint8_t i = 0; i < ui->targetTableWidget->rowCount(); i++)
     {
+        if (ui->targetTableWidget->item(i, 2) == NULL)
+        {
+            QMessageBox::critical(0, "ERROR", "Unable to add mission item!",
+                                  QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+            return;
+        }
+        targetID.append(ui->targetTableWidget->item(i, 0)->text().toInt());
         targetData.append(ui->targetTableWidget->item(i, 2)->text());
     }
-    emit sendNewMissionData(initialData, targetData);
+    emit sendNewMissionData(initialID, initialData, targetID, targetData);
+
 }

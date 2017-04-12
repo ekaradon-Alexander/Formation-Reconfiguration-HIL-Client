@@ -30,11 +30,13 @@ MainWindow::MainWindow(QWidget *parent) :
     deviceViewDialog = new DeviceViewDialog();
 
     missionDialog = new MissionDialog();
-    connect(missionDialog, SIGNAL(sendNewMissionData(QVector<QString>, QVector<QString>)),
-            this, SLOT(on_newMissionReceived(QVector<QString>, QVector<QString>)));
+    connect(missionDialog, SIGNAL(sendNewMissionData(QVector<uint8_t>, QVector<QString>, QVector<uint8_t>, QVector<QString>)),
+            this, SLOT(on_newMissionReceived(QVector<uint8_t>, QVector<QString>, QVector<uint8_t>, QVector<QString>)));
 
     sender = new QUdpSocket();
     stateNoModel();
+
+    mission = new Mission();
 
     g_setting.clientPort = DEFAULT_CLIENT_PORT;
     listenerThread = new UDPThread();
@@ -138,15 +140,19 @@ void MainWindow::on_newSettingReceived(uint16_t clientPort, QString clientIP)
     g_setting.clientIP = clientIP;
 }
 
-void MainWindow::on_newMissionReceived(QVector<QString> initialData, QVector<QString> targetData)
+void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QString> initialData,
+                                       QVector<uint8_t> targetID, QVector<QString> targetData)
 {
-    for (int i = 0; i < initialData.length(); i++)
+    for (int i = 0; i < initialID.length(); i++)
     {
-        qDebug() << initialData.at(i);
-    }
-    for (int i = 0; i < targetData.length(); i++)
-    {
-        qDebug() << targetData.at(i);
+        uint8_t ID = initialID.at(i);
+        for (int j = 0; j < targetID.length(); j++)
+        {
+            if (targetID.at(j) == ID)
+            {
+                mission->addMissionItem(ID, initialData.at(i), targetData.at(j));
+            }
+        }
     }
 }
 

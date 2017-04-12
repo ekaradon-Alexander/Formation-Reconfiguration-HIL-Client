@@ -3,6 +3,10 @@
 
 #include <QDialog>
 #include <QVector>
+#include <QMessageBox>
+#include <exception>
+#include <QDebug>
+#include <assert.h>
 
 namespace Ui {
 class MissionDialog;
@@ -20,7 +24,8 @@ public:
     void addNewItem(uint8_t ID, QString modelName);
 
 signals:
-    void sendNewMissionData(QVector<QString> initialData, QVector<QString> targetData);
+    void sendNewMissionData(QVector<uint8_t> initialID, QVector<QString> initialData,
+                            QVector<uint8_t> targetID, QVector<QString> targetData);
 
 private slots:
     void on_buttonBox_accepted();
