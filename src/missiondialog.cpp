@@ -48,7 +48,7 @@ void MissionDialog::on_buttonBox_accepted()
     {
         if (ui->initialTableWidget->item(i, 2) == NULL)
         {
-            QMessageBox::critical(0, "ERROR", "Unable to add mission item!",
+            QMessageBox::critical(0, "ERROR", "Please set a initial state for each UAV.",
                                   QMessageBox::Ok);
             return;
         }
@@ -61,8 +61,8 @@ void MissionDialog::on_buttonBox_accepted()
     {
         if (ui->targetTableWidget->item(i, 2) == NULL)
         {
-            QMessageBox::critical(0, "ERROR", "Unable to add mission item!",
-                                  QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+            QMessageBox::critical(0, "ERROR", "Please set a target state for each UAV.",
+                                  QMessageBox::Ok);
             return;
         }
         targetID.append(ui->targetTableWidget->item(i, 0)->text().toInt());

@@ -7,6 +7,9 @@ SettingDialog::SettingDialog(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->port_spinBox->setValue(DEFAULT_CLIENT_PORT);
+    refreshIPAddress();
+    g_setting.clientIP = ui->ip_comboBox->currentText();
+    g_setting.clientPort = ui->port_spinBox->value();
 }
 
 SettingDialog::~SettingDialog()

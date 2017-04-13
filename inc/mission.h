@@ -6,6 +6,7 @@
 struct InitTarget
 {
     uint8_t ID;
+    uint8_t length;
     float *location;
 };
 
@@ -17,11 +18,11 @@ class Mission
 public:
     Mission();
 
-    QVector<Initial> initial;
-    QVector<Target> target;
+    QVector<Initial *> initial;
+    QVector<Target *> target;
 
-    void addMissionItem(uint8_t ID, QString initState, QString targetState);
-
+    void updateMissionItem(uint8_t ID, QVector<float> initState, QVector<float> targetState);
+    void dispMissionItem(void);
 };
 
 #endif // MISSION_H
