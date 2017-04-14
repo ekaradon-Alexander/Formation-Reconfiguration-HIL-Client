@@ -21,7 +21,7 @@ private:
     Ui::ModelViewDialog *ui;
 
 public:
-    void addNewItem(QString modelName, float deltat, uint8_t nState, uint8_t nControl);
+    void addNewItem(QString modelName, float deltat, uint8_t nModelState, uint8_t nModelControl);
 };
 
 #endif // MODELVIEWDIALOG_H
