@@ -24,7 +24,6 @@ signals:
     void sendSettingData(uint16_t clientPort, QString clientIP);
 private slots:
     void on_buttonBox_accepted();
-
     void on_refresh_pushButton_clicked();
 
 public:

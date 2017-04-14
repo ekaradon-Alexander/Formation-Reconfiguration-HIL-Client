@@ -41,7 +41,7 @@
       <item row="0" column="2">
        <widget class="QPushButton" name="taskButton">
         <property name="text">
-         <string>Task</string>
+         <string>Mission</string>
         </property>
        </widget>
       </item>
@@ -77,21 +77,11 @@
     </item>
     <item row="0" column="0">
      <layout class="QGridLayout" name="gridLayout_1">
-      <item row="1" column="0">
-       <widget class="QwtPlot" name="map">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-          <horstretch>3</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-       </widget>
-      </item>
       <item row="1" column="1">
        <widget class="QTextBrowser" name="console">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-          <horstretch>1</horstretch>
+          <horstretch>2</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
@@ -100,6 +90,16 @@
           <family>Monaco</family>
           <pointsize>10</pointsize>
          </font>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCustomPlot" name="map" native="true">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>7</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
        </widget>
       </item>
@@ -161,9 +161,10 @@
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
   <customwidget>
-   <class>QwtPlot</class>
-   <extends>QFrame</extends>
-   <header>qwt_plot.h</header>
+   <class>QCustomPlot</class>
+   <extends>QWidget</extends>
+   <header>qcustomplot.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

@@ -12,7 +12,7 @@ enum TASK_STATUS
 {
     NO_MODEL,
     NO_DEVICE,
-    NO_TASK,
+    NO_MISSION,
     READY,
     SIMULATION,
 };

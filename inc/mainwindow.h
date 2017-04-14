@@ -2,26 +2,30 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <qdatetime.h>
-#include <qstring.h>
-#include <qtimer.h>
-#include <qthread.h>
+#include <QtNetwork>
+#include <QDateTime>
+#include <QString>
+#include <QTimer>
+#include <QThread>
+#include <QVector>
+#include <QDebug>
+#include <QProcess>
+#include <QMessageBox>
 
 #include <adddevicedialog.h>
 #include <addmodeldialog.h>
 #include <modelviewdialog.h>
 #include <settingdialog.h>
 #include <deviceviewdialog.h>
+#include <missiondialog.h>
 
-#include <QtNetwork>
-#include <qvector.h>
 #include <uavmodel.h>
 #include <uavdevice.h>
-#include <qprocess.h>
-#include <QDebug>
-#include <controllercommunication.h>
+#include <mission.h>
 
+#include <controllercommunication.h>
 #include <common.h>
+
 #include <udpthread.h>
 
 using namespace std;
@@ -41,48 +45,64 @@ public:
 private:
     Ui::MainWindow *ui;
     QString consoleStr;
-    QTimer simTimer;
+
+    QTimer *plotTimer;
+    QVector<QTimer *> modelTimers;
 
     AddDeviceDialog *addDeviceDialog;
     AddModelDialog *addModelDialog;
     ModelViewDialog *modelViewDialog;
     DeviceViewDialog *deviceViewDialog;
     SettingDialog *settingDialog;
+    MissionDialog *missionDialog;
 
     QUdpSocket *sender;
-    // uint16_t receivePort;
 
     QVector<UAVModel *> models;
     QVector<UAVDevice *> devices;
     QVector<UAVDevice *> devicesWaitForValid;
+
+    Mission *mission;
 
     QProcess *contactModel;
     QProcess *listenController;
 
     UDPThread *listenerThread;
 
-private:
+
+private:    // about system state
     void stateNoModel(void);
     void stateNoDevice(void);
-    void stateNoTask(void);
+    void stateNoMission(void);
+    void stateReady(void);
 
-private:
+private:    // about validation
     bool validNewModel(uint8_t nState, uint8_t nControl, QString modelPath);
     void sendValidNewDevice(uint8_t ID, uint8_t model, QString IP, uint16_t port);
+
+private:    // about simulation and plotting
+    void initMap(void);
+    void initTimers(void);
 
 private slots:
     void on_newModelAdded(uint8_t nState, uint8_t nControl, float deltat,
                              QString modelPath, QString modelName);
     void on_newDevAdded(uint8_t ID, uint8_t model, QString IP, uint16_t port);
     void on_newSettingReceived(uint16_t clientPort, QString clientIP);
+    void on_newMissionReceived(QVector<uint8_t> initialID, QVector<QString> initialData,
+                               QVector<uint8_t> targetID, QVector<QString> targetData);
+    void on_controllerMessageReceived(QByteArray msg);
 
     void on_newModelOutputGet();
+
     void on_addDeviceButton_clicked();
     void on_addModelButton_clicked();
+    void on_taskButton_clicked();
+
     void on_actionShow_All_Models_triggered();
-    void on_controllerMessageReceived(QByteArray msg);
-    void on_actionSet_triggered();
     void on_actionShow_All_Devices_triggered();
+    void on_actionSet_triggered();
+
 };
 
 #endif // MAINWINDOW_H

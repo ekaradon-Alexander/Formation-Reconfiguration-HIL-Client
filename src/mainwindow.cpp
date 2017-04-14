@@ -9,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->menuBar->setNativeMenuBar(false);
+    ui->map->setEnabled(false);
 
     addModelDialog = new AddModelDialog(this);
     connect(addModelDialog, SIGNAL(sendNewModelData(uint8_t, uint8_t, float, QString, QString)),
@@ -22,6 +23,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(settingDialog, SIGNAL(sendSettingData(uint16_t, QString)),
             this, SLOT(on_newSettingReceived(uint16_t, QString)));
 
+
     contactModel = new QProcess();
     connect(contactModel, SIGNAL(readyReadStandardOutput()),
             this, SLOT(on_newModelOutputGet()));
@@ -29,10 +31,15 @@ MainWindow::MainWindow(QWidget *parent) :
     modelViewDialog = new ModelViewDialog();
     deviceViewDialog = new DeviceViewDialog();
 
+    missionDialog = new MissionDialog();
+    connect(missionDialog, SIGNAL(sendNewMissionData(QVector<uint8_t>, QVector<QString>, QVector<uint8_t>, QVector<QString>)),
+            this, SLOT(on_newMissionReceived(QVector<uint8_t>, QVector<QString>, QVector<uint8_t>, QVector<QString>)));
+
     sender = new QUdpSocket();
     stateNoModel();
 
-    g_setting.clientPort = DEFAULT_CLIENT_PORT;
+    mission = new Mission();
+
     listenerThread = new UDPThread();
     listenerThread->setPort(g_setting.clientPort);
     connect(listenerThread, SIGNAL(getMessage(QByteArray)),
@@ -82,9 +89,9 @@ void MainWindow::stateNoDevice(void)
 /**
  * @brief change system status to NO_TASK
  */
-void MainWindow::stateNoTask(void)
+void MainWindow::stateNoMission(void)
 {
-    g_status = TASK_STATUS::NO_TASK;
+    g_status = TASK_STATUS::NO_MISSION;
 
     ui->addDeviceButton->setEnabled(true);
     ui->taskButton->setEnabled(true);
@@ -94,6 +101,24 @@ void MainWindow::stateNoTask(void)
     ui->statusBar->showMessage("No task");
     consoleStr = TIME_STAMP + "No task";
     ui->console->append(consoleStr);
+}
+
+void MainWindow::stateReady()
+{
+    g_status = TASK_STATUS::READY;
+
+    ui->addDeviceButton->setEnabled(true);
+    ui->taskButton->setEnabled(true);
+    ui->startButton->setEnabled(true);
+    ui->stopButton->setEnabled(false);
+
+    ui->statusBar->showMessage("Ready");
+    consoleStr = TIME_STAMP + "Ready";
+    ui->console->append(consoleStr);
+
+    initMap();
+    initTimers();
+
 }
 
 /**
@@ -107,7 +132,7 @@ void MainWindow::on_newDevAdded(uint8_t ID, uint8_t model, QString IP, uint16_t 
 {
     for (uint8_t i = 0; i < devices.length(); i++)
     {
-        if (devices[i]->ID == ID)
+        if (devices.at(i)->ID == ID)
         {
             consoleStr = TIME_STAMP + "Device [" + QString::number(ID) + "] already exists.";
             ui->console->append(consoleStr);
@@ -135,6 +160,80 @@ void MainWindow::on_newSettingReceived(uint16_t clientPort, QString clientIP)
 }
 
 /**
+ * @brief valid new mission item and add it to mission
+ * @param initialID
+ * @param initialData
+ * @param targetID
+ * @param targetData
+ */
+void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QString> initialData,
+                                       QVector<uint8_t> targetID, QVector<QString> targetData)
+{
+    for (uint8_t i = 0; i < initialID.length(); i++)
+    {
+        uint8_t model, nState, ID = initialID.at(i);
+
+        // check device information
+        for (uint8_t j = 0; j < devices.length(); j++)
+        {
+            if (devices.at(j)->ID == ID)
+            {
+                model = devices.at(j)->model;
+                nState = models.at(model)->nState;
+            }
+        }
+
+        // split initialData
+        QStringList initialDataList = initialData.at(i).split(',');
+        QVector<float> initState;
+        if (initialDataList.length() != nState)
+        {
+            QMessageBox::critical(0, "ERROR", QString("Device %1 has %2 states.").arg(ID).arg(nState),
+                        QMessageBox::Ok);
+            return;
+        }
+        else
+        {
+            for (uint8_t j = 0; j < initialDataList.length(); j++)
+            {
+                initState.append(initialDataList.at(j).toFloat());
+            }
+        }
+
+        // split targetData
+        QStringList targetDataList;
+        QVector<float> targetState;
+        for (uint8_t j = 0; j < targetID.length(); j++)
+        {
+            if (targetID.at(j) == ID)
+            {
+                targetDataList = targetData.at(j).split(',');
+                if (targetDataList.length() < 3)
+                {
+                    QMessageBox::critical(0, "ERROR",
+                                          QString("Device %1 needs at least location information (x, y, h) as target state.").arg(ID));
+                    return;
+                }
+                else
+                {
+                    for (uint8_t k = 0; k < targetDataList.length(); k++)
+                    {
+                        targetState.append(targetDataList.at(k).toFloat());
+                    }
+                }
+            }
+        }
+
+        // add new mission item
+        qDebug() << initState.length() << targetState.length();
+        mission->updateMissionItem(ID, initState, targetState);
+    }
+
+    mission->dispMissionItem();
+    stateReady();
+}
+
+/**
  * @brief valid and create new model
  * @param nState        number of state
  * @param nControl      number of control
@@ -147,7 +246,7 @@ void MainWindow::on_newModelAdded(uint8_t nState, uint8_t nControl, float deltat
 {
     for (uint8_t i = 0; i < models.length(); i++)
     {
-        if (models[i]->modelName == modelName)
+        if (models.at(i)->modelName == modelName)
         {
             consoleStr = TIME_STAMP + "Model [" + modelName + "] already exists.";
             ui->console->append(consoleStr);
@@ -232,10 +331,49 @@ void MainWindow::sendValidNewDevice(uint8_t ID, uint8_t model, QString IP, uint1
     message.payLoad.connectionRequest.clientIP = static_cast<uint32_t>(QHostAddress(g_setting.clientIP).toIPv4Address());
     message.payLoad.connectionRequest.clientPort = g_setting.clientPort;
     message.payLoad.connectionRequest.model = model;
-    message.payLoad.connectionRequest.nState = models[model]->nState;
-    message.payLoad.connectionRequest.nControl = models[model]->nControl;
+    message.payLoad.connectionRequest.nState = models.at(model)->nState;
+    message.payLoad.connectionRequest.nControl = models.at(model)->nControl;
     sender->writeDatagram((char *)&message, sizeof(message), controllerAddress, port);
     qDebug() << sizeof(message);
+}
+
+void MainWindow::initMap(void)
+{
+    ui->map->setEnabled(true);
+    ui->map->xAxis->setLabel("x [m]");
+    ui->map->yAxis->setLabel("y [m]");
+
+    // add mission initial locations
+    ui->map->addGraph();
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        ui->map->graph(0)->addData(mission->initial.at(i)->location[0],
+                mission->initial.at(i)->location[1]);
+    }
+    ui->map->graph(0)->setAntialiased(true);
+    ui->map->graph(0)->setLineStyle(QCPGraph::lsNone);
+    ui->map->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 10));
+
+    // add mission target locations
+    ui->map->addGraph();
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        ui->map->graph(1)->addData(mission->target.at(i)->location[0],
+                mission->target.at(i)->location[1]);
+    }
+    ui->map->graph(1)->setAntialiased(true);
+    ui->map->graph(1)->setLineStyle(QCPGraph::lsNone);
+    ui->map->graph(1)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCross, 10));
+
+    ui->map->rescaleAxes(true);
+    ui->map->xAxis->scaleRange(1.1, ui->map->xAxis->range().center());
+    ui->map->yAxis->scaleRange(1.1, ui->map->yAxis->range().center());
+    ui->map->replot();
+}
+
+void MainWindow::initTimers()
+{
+
 }
 
 /**
@@ -261,12 +399,20 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
                                                  temp->IP,
                                                  temp->port));
                     deviceViewDialog->addNewItem(temp->ID,
-                                                 models[temp->model]->modelName,
+                                                 models.at(temp->model)->modelName,
                                                  temp->IP,
                                                  temp->port);
+                    missionDialog->addNewItem(temp->ID, models.at(temp->model)->modelName);
                     devicesWaitForValid.removeAt(i);
+                    consoleStr = TIME_STAMP + QString("Connected to device [%1].").arg(temp->ID);
+                    ui->console->append(consoleStr);
                     break;
                 }
+            }
+
+            if (g_status == TASK_STATUS::NO_DEVICE)
+            {
+                stateNoMission();
             }
         }; break;
     }
@@ -296,4 +442,9 @@ void MainWindow::on_actionSet_triggered()
 void MainWindow::on_actionShow_All_Devices_triggered()
 {
     deviceViewDialog->exec();
+}
+
+void MainWindow::on_taskButton_clicked()
+{
+    missionDialog->exec();
 }

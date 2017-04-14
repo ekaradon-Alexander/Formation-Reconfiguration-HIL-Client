@@ -2,6 +2,7 @@
 #define UAVMODEL_H
 
 #include <qstring.h>
+#include <QTimer>
 
 class UAVModel
 {
