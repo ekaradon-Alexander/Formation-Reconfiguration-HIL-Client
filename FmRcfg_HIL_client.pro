@@ -7,8 +7,7 @@
 QT       += core gui
 QT       += network
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-include(/usr/local/qwt-6.1.2/features/qwt.prf)
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
 TARGET = test
 TEMPLATE = app
@@ -28,7 +27,8 @@ SOURCES += \
     src/uavmodel.cpp \
     src/udpthread.cpp \
     src/missiondialog.cpp \
-    src/mission.cpp
+    src/mission.cpp \
+    src/qcustomplot.cpp
 
 HEADERS += \
     inc/adddevicedialog.h \
@@ -43,7 +43,8 @@ HEADERS += \
     inc/uavmodel.h \
     inc/udpthread.h \
     inc/missiondialog.h \
-    inc/mission.h
+    inc/mission.h \
+    inc/qcustomplot.h
 
 FORMS += \
     form/adddevicedialog.ui \

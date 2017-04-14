@@ -2,6 +2,7 @@
 #define UAVDEVICE_H
 
 #include <qstring.h>
+#include <QTimer>
 
 class UAVDevice
 {
@@ -14,6 +15,7 @@ public:
     uint8_t model;
     QString IP;
     int16_t port;
+    QTimer *simTimer;
 };
 
 #endif // UAVDEVICE_H

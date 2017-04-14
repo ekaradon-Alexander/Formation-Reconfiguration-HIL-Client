@@ -9,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->menuBar->setNativeMenuBar(false);
+    ui->map->setEnabled(false);
 
     addModelDialog = new AddModelDialog(this);
     connect(addModelDialog, SIGNAL(sendNewModelData(uint8_t, uint8_t, float, QString, QString)),
@@ -100,6 +101,24 @@ void MainWindow::stateNoMission(void)
     ui->statusBar->showMessage("No task");
     consoleStr = TIME_STAMP + "No task";
     ui->console->append(consoleStr);
+}
+
+void MainWindow::stateReady()
+{
+    g_status = TASK_STATUS::READY;
+
+    ui->addDeviceButton->setEnabled(true);
+    ui->taskButton->setEnabled(true);
+    ui->startButton->setEnabled(true);
+    ui->stopButton->setEnabled(false);
+
+    ui->statusBar->showMessage("Ready");
+    consoleStr = TIME_STAMP + "Ready";
+    ui->console->append(consoleStr);
+
+    initMap();
+    initTimers();
+
 }
 
 /**
@@ -211,6 +230,7 @@ void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QStri
     }
 
     mission->dispMissionItem();
+    stateReady();
 }
 
 /**
@@ -317,6 +337,45 @@ void MainWindow::sendValidNewDevice(uint8_t ID, uint8_t model, QString IP, uint1
     qDebug() << sizeof(message);
 }
 
+void MainWindow::initMap(void)
+{
+    ui->map->setEnabled(true);
+    ui->map->xAxis->setLabel("x [m]");
+    ui->map->yAxis->setLabel("y [m]");
+
+    // add mission initial locations
+    ui->map->addGraph();
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        ui->map->graph(0)->addData(mission->initial.at(i)->location[0],
+                mission->initial.at(i)->location[1]);
+    }
+    ui->map->graph(0)->setAntialiased(true);
+    ui->map->graph(0)->setLineStyle(QCPGraph::lsNone);
+    ui->map->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 10));
+
+    // add mission target locations
+    ui->map->addGraph();
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        ui->map->graph(1)->addData(mission->target.at(i)->location[0],
+                mission->target.at(i)->location[1]);
+    }
+    ui->map->graph(1)->setAntialiased(true);
+    ui->map->graph(1)->setLineStyle(QCPGraph::lsNone);
+    ui->map->graph(1)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCross, 10));
+
+    ui->map->rescaleAxes(true);
+    ui->map->xAxis->scaleRange(1.1, ui->map->xAxis->range().center());
+    ui->map->yAxis->scaleRange(1.1, ui->map->yAxis->range().center());
+    ui->map->replot();
+}
+
+void MainWindow::initTimers()
+{
+
+}
+
 /**
  * @brief process message from controller according to protocol in controllercommunication.h
  * @param msg       message from controller
@@ -345,6 +404,8 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
                                                  temp->port);
                     missionDialog->addNewItem(temp->ID, models.at(temp->model)->modelName);
                     devicesWaitForValid.removeAt(i);
+                    consoleStr = TIME_STAMP + QString("Connected to device [%1].").arg(temp->ID);
+                    ui->console->append(consoleStr);
                     break;
                 }
             }

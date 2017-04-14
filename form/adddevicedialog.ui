@@ -123,7 +123,11 @@
       </widget>
      </item>
      <item row="0" column="1">
-      <widget class="QLineEdit" name="IP"/>
+      <widget class="QLineEdit" name="IP">
+       <property name="text">
+        <string>127.0.0.1</string>
+       </property>
+      </widget>
      </item>
      <item row="1" column="0">
       <widget class="QLabel" name="label_4">
@@ -136,6 +140,9 @@
       <widget class="QSpinBox" name="port">
        <property name="maximum">
         <number>65535</number>
+       </property>
+       <property name="value">
+        <number>55555</number>
        </property>
       </widget>
      </item>
