@@ -23,10 +23,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(settingDialog, SIGNAL(sendSettingData(uint16_t, QString)),
             this, SLOT(on_newSettingReceived(uint16_t, QString)));
 
-
     contactModel = new QProcess();
-    connect(contactModel, SIGNAL(readyReadStandardOutput()),
-            this, SLOT(on_newModelOutputGet()));
 
     modelViewDialog = new ModelViewDialog();
     deviceViewDialog = new DeviceViewDialog();
@@ -45,6 +42,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(listenerThread, SIGNAL(getMessage(QByteArray)),
             this, SLOT(on_controllerMessageReceived(QByteArray)));
     listenerThread->start();
+
+    plotTimer = new QTimer();
+    plotTimer->setInterval(2000);
+    connect(plotTimer, SIGNAL(timeout()), this, SLOT(updateMap()));
 }
 
 MainWindow::~MainWindow()
@@ -103,6 +104,9 @@ void MainWindow::stateNoMission(void)
     ui->console->append(consoleStr);
 }
 
+/**
+ * @brief change system status to READY
+ */
 void MainWindow::stateReady()
 {
     g_status = TASK_STATUS::READY;
@@ -117,8 +121,6 @@ void MainWindow::stateReady()
     ui->console->append(consoleStr);
 
     initMap();
-    initTimers();
-
 }
 
 /**
@@ -128,23 +130,27 @@ void MainWindow::stateReady()
  * @param IP        controller IP address
  * @param port      controller process port
  */
-void MainWindow::on_newDevAdded(uint8_t ID, uint8_t model, QString IP, uint16_t port)
+void MainWindow::on_newDevAdded(uint8_t deviceID, uint8_t modelID,
+                                QString controllerIP, uint16_t controllerPort)
 {
+    // check if device ID already exist
     for (uint8_t i = 0; i < devices.length(); i++)
     {
-        if (devices.at(i)->ID == ID)
+        if (devices.at(i)->deviceID == deviceID)
         {
-            consoleStr = TIME_STAMP + "Device [" + QString::number(ID) + "] already exists.";
+            consoleStr = TIME_STAMP + "Device [" + QString::number(deviceID) + "] already exists.";
             ui->console->append(consoleStr);
             return;
         }
     }
 
-    devicesWaitForValid.append(new UAVDevice(ID, model, IP, port));
-    sendValidNewDevice(ID, model, IP, port);
+    // send valid msg to controller
+    devicesWaitForValid.append(new UAVDevice(deviceID, modelID, models,
+                                             controllerIP, controllerPort));
+    sendValidNewDevice(devicesWaitForValid.last());
 
-    consoleStr = TIME_STAMP + "Connecting controller at " + IP + ":" +
-            QString::number(port);
+    consoleStr = TIME_STAMP + "Connecting controller at " + controllerIP + ":" +
+            QString::number(controllerPort);
     ui->console->append(consoleStr);
 }
 
@@ -171,15 +177,15 @@ void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QStri
 {
     for (uint8_t i = 0; i < initialID.length(); i++)
     {
-        uint8_t model, nState, ID = initialID.at(i);
+        uint8_t model, nState, deviceID = initialID.at(i);
 
         // check device information
         for (uint8_t j = 0; j < devices.length(); j++)
         {
-            if (devices.at(j)->ID == ID)
+            if (devices.at(j)->deviceID == deviceID)
             {
-                model = devices.at(j)->model;
-                nState = models.at(model)->nState;
+                model = devices.at(j)->modelID;
+                nState = devices.at(j)->modelPtr->nModelState;
             }
         }
 
@@ -188,8 +194,8 @@ void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QStri
         QVector<float> initState;
         if (initialDataList.length() != nState)
         {
-            QMessageBox::critical(0, "ERROR", QString("Device %1 has %2 states.").arg(ID).arg(nState),
-                        QMessageBox::Ok);
+            QMessageBox::critical(0, "ERROR", QString("Device %1 has %2 states.").arg(deviceID).arg(nState),
+                                  QMessageBox::Ok);
             return;
         }
         else
@@ -205,13 +211,13 @@ void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QStri
         QVector<float> targetState;
         for (uint8_t j = 0; j < targetID.length(); j++)
         {
-            if (targetID.at(j) == ID)
+            if (targetID.at(j) == deviceID)
             {
                 targetDataList = targetData.at(j).split(',');
                 if (targetDataList.length() < 3)
                 {
                     QMessageBox::critical(0, "ERROR",
-                                          QString("Device %1 needs at least location information (x, y, h) as target state.").arg(ID));
+                                          QString("Device %1 needs at least location information (x, y, h) as target state.").arg(deviceID));
                     return;
                 }
                 else
@@ -226,7 +232,7 @@ void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QStri
 
         // add new mission item
         qDebug() << initState.length() << targetState.length();
-        mission->updateMissionItem(ID, initState, targetState);
+        mission->updateMissionItem(deviceID, initState, targetState);
     }
 
     mission->dispMissionItem();
@@ -241,9 +247,10 @@ void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QStri
  * @param modelPath     path of model executable
  * @param modelName     model name
  */
-void MainWindow::on_newModelAdded(uint8_t nState, uint8_t nControl, float deltat,
-                                     QString modelPath, QString modelName)
+void MainWindow::on_newModelAdded(uint8_t nModelState, uint8_t nModelControl, float deltat,
+                                  QString modelPath, QString modelName)
 {
+    // check if modelName already exist
     for (uint8_t i = 0; i < models.length(); i++)
     {
         if (models.at(i)->modelName == modelName)
@@ -254,7 +261,8 @@ void MainWindow::on_newModelAdded(uint8_t nState, uint8_t nControl, float deltat
         }
     }
 
-    if (!validNewModel(nState, nControl, modelPath))
+    // valid nState and nControl
+    if (!validNewModel(nModelState, nModelControl, modelPath))
     {
         consoleStr = TIME_STAMP + "Wrong #state and/or #control.";
         ui->console->append(consoleStr);
@@ -264,9 +272,9 @@ void MainWindow::on_newModelAdded(uint8_t nState, uint8_t nControl, float deltat
         consoleStr = TIME_STAMP + "Created new model [" + modelName + "]. Path = " + modelPath;
         ui->console->append(consoleStr);
 
-        models.append(new UAVModel(nState, nControl, deltat, modelPath, modelName));
-        addDeviceDialog->addNewModelToCombo(nState, nControl, modelName);
-        modelViewDialog->addNewItem(modelName, deltat, nState, nControl);
+        models.append(new UAVModel(nModelState, nModelControl, deltat, modelPath, modelName));
+        addDeviceDialog->addNewModelToCombo(nModelState, nModelControl, modelName);
+        modelViewDialog->addNewItem(modelName, deltat, nModelState, nModelControl);
 
         if (g_status == TASK_STATUS::NO_MODEL)
         {
@@ -276,28 +284,18 @@ void MainWindow::on_newModelAdded(uint8_t nState, uint8_t nControl, float deltat
 }
 
 /**
- * @brief read model output from std output
- */
-void MainWindow::on_newModelOutputGet()
-{
-    QByteArray abc = contactModel->readAllStandardOutput();
-    QString str = abc;
-    ui->console->append(str);
-}
-
-/**
  * @brief create and send model validation data
  * @param nState        number of state
  * @param nControl      number of control
  * @param modelPath     path of model executable
  * @return  true when nState and nControl match the requirement of the executable
  */
-bool MainWindow::validNewModel(uint8_t nState, uint8_t nControl, QString modelPath)
+bool MainWindow::validNewModel(uint8_t nModelState, uint8_t nModelControl, QString modelPath)
 {
     QString proStr;
 
     proStr = modelPath + " ";
-    for (uint8_t i = 0; i < nState + nControl + 1; i++)
+    for (uint8_t i = 0; i < nModelState + nModelControl + 1; i++)
     {
         proStr += (QString::number(0) + " ");
     }
@@ -313,28 +311,20 @@ bool MainWindow::validNewModel(uint8_t nState, uint8_t nControl, QString modelPa
     }
 }
 
-/**
- * @brief connect the controller at IP:port and check whether is available
- * @param ID        device ID
- * @param model     device model
- * @param IP        controller IP
- * @param port      controller process port
- */
-void MainWindow::sendValidNewDevice(uint8_t ID, uint8_t model, QString IP, uint16_t port)
+void MainWindow::sendValidNewDevice(UAVDevice *device)
 {
-    QHostAddress controllerAddress = QHostAddress(IP);
+    QHostAddress controllerAddress = QHostAddress(device->controllerIP);
+    ClientToController msg;
 
-    ClientToController message;
-    message.type = MESSAGE_TYPE::CONNECTION;
-    message.ID = ID;
+    msg.type = MESSAGE_TYPE::CONNECTION;
+    msg.ID = device->deviceID;
 
-    message.payLoad.connectionRequest.clientIP = static_cast<uint32_t>(QHostAddress(g_setting.clientIP).toIPv4Address());
-    message.payLoad.connectionRequest.clientPort = g_setting.clientPort;
-    message.payLoad.connectionRequest.model = model;
-    message.payLoad.connectionRequest.nState = models.at(model)->nState;
-    message.payLoad.connectionRequest.nControl = models.at(model)->nControl;
-    sender->writeDatagram((char *)&message, sizeof(message), controllerAddress, port);
-    qDebug() << sizeof(message);
+    msg.payLoad.connectionRequest.clientIP = static_cast<uint32_t>(QHostAddress(g_setting.clientIP).toIPv4Address());
+    msg.payLoad.connectionRequest.clientPort = g_setting.clientPort;
+    msg.payLoad.connectionRequest.modelID = device->modelID;
+    msg.payLoad.connectionRequest.nModelState = device->modelPtr->nModelState;
+    msg.payLoad.connectionRequest.nModelControl = device->modelPtr->nModelControl;
+    sender->writeDatagram((char *)&msg, sizeof(msg), controllerAddress, device->controllerPort);
 }
 
 void MainWindow::initMap(void)
@@ -371,9 +361,20 @@ void MainWindow::initMap(void)
     ui->map->replot();
 }
 
-void MainWindow::initTimers()
+void MainWindow::updateMap()
 {
+    qDebug() << "update map";
+    ui->map->addGraph();
+    ui->map->graph()->setLineStyle(QCPGraph::lsNone);
+    ui->map->graph()->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 3));
 
+    float x, y, z;
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        devices.at(i)->getLocation(x, y, z);
+        ui->map->graph()->addData(x, y);
+    }
+    ui->map->replot();
 }
 
 /**
@@ -387,35 +388,37 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
     uint8_t ID = mmsg->ID;
     switch (mmsg->type)
     {
-        case CONNECTION:
+    case CONNECTION:
+    {
+        for (int i = 0; i < devicesWaitForValid.length(); i++)
         {
-            for (int i = 0; i < devicesWaitForValid.length(); i++)
+            if (devicesWaitForValid.at(i)->deviceID == ID)
             {
-                if (devicesWaitForValid.at(i)->ID == ID)
-                {
-                    const UAVDevice *temp = devicesWaitForValid.at(i);
-                    devices.append(new UAVDevice(temp->ID,
-                                                 temp->model,
-                                                 temp->IP,
-                                                 temp->port));
-                    deviceViewDialog->addNewItem(temp->ID,
-                                                 models.at(temp->model)->modelName,
-                                                 temp->IP,
-                                                 temp->port);
-                    missionDialog->addNewItem(temp->ID, models.at(temp->model)->modelName);
-                    devicesWaitForValid.removeAt(i);
-                    consoleStr = TIME_STAMP + QString("Connected to device [%1].").arg(temp->ID);
-                    ui->console->append(consoleStr);
-                    break;
-                }
+                UAVDevice *temp = devicesWaitForValid.at(i);
+                devices.append(new UAVDevice(*temp));
+                deviceViewDialog->addNewItem(temp->deviceID,
+                                             temp->modelPtr->modelName,
+                                             temp->controllerIP.toString(),
+                                             temp->controllerPort);
+                missionDialog->addNewItem(temp->deviceID, temp->modelPtr->modelName);
+                devicesWaitForValid.removeAt(i);
+                consoleStr = TIME_STAMP + QString("Connected to device [%1].").arg(temp->deviceID);
+                ui->console->append(consoleStr);
+                break;
             }
+        }
 
-            if (g_status == TASK_STATUS::NO_DEVICE)
-            {
-                stateNoMission();
-            }
-        }; break;
+        if (g_status == TASK_STATUS::NO_DEVICE)
+        {
+            stateNoMission();
+        }
+    }; break;
     }
+}
+
+void MainWindow::on_deviceSimTimeout(UAVDevice *device)
+{
+
 }
 
 void MainWindow::on_addDeviceButton_clicked()
@@ -447,4 +450,17 @@ void MainWindow::on_actionShow_All_Devices_triggered()
 void MainWindow::on_taskButton_clicked()
 {
     missionDialog->exec();
+}
+
+void MainWindow::on_startButton_clicked()
+{
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        devices.at(i)->setStates(mission->initial.at(i)->location);
+    }
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        devices.at(i)->simTimer->start();
+    }
+    plotTimer->start();
 }

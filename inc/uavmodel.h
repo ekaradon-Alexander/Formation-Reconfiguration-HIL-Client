@@ -8,11 +8,11 @@ class UAVModel
 {
 public:
     UAVModel();
-    UAVModel(uint8_t nState, uint8_t nControl, float deltat, QString modelPath, QString modelName);
+    UAVModel(uint8_t nModelState, uint8_t nModelControl, float deltat, QString modelPath, QString modelName);
 
 public:
-    uint8_t nState;
-    uint8_t nControl;
+    uint8_t nModelState;
+    uint8_t nModelControl;
     float deltat;
     QString modelPath;
     QString modelName;

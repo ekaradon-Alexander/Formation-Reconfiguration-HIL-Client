@@ -45,10 +45,10 @@ union ClientToControllerPayLoad
     {
         uint32_t clientIP;      // connection result is sent to this IP
         uint16_t clientPort;    // connection result is sent to this port
-        uint8_t model;          // model of the device
-        uint8_t nState;         // number of state
-        uint8_t nControl;       // number of control
-        // number of state in the CONTROLLER should be less or equal to nState
+        uint8_t modelID;          // model of the device
+        uint8_t nModelState;         // number of state
+        uint8_t nModelControl;       // number of control
+        // number of state in the CONTROLLER should be less or equal to nModelState
     } connectionRequest;
 
 };

@@ -17,7 +17,7 @@ public:
     ~AddModelDialog();
 
 signals:
-    void sendNewModelData(uint8_t nState, uint8_t nControl, float deltat,
+    void sendNewModelData(uint8_t nModelState, uint8_t nModelControl, float deltat,
                           QString modelPath, QString modelName);
 
 private slots:

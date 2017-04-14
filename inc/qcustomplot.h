@@ -737,8 +737,8 @@ protected:
   virtual void applyDefaultAntialiasingHint(QCPPainter *painter) const = 0;
   virtual void draw(QCPPainter *painter) = 0;
   // selection events:
-  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionStateChanged);
-  virtual void deselectEvent(bool *selectionStateChanged);
+  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionModelStateChanged);
+  virtual void deselectEvent(bool *selectionModelStateChanged);
   // low-level mouse events:
   virtual void mousePressEvent(QMouseEvent *event, const QVariant &details);
   virtual void mouseMoveEvent(QMouseEvent *event, const QPointF &startPos);
@@ -2155,8 +2155,8 @@ protected:
   virtual void draw(QCPPainter *painter) Q_DECL_OVERRIDE;
   virtual QCP::Interaction selectionCategory() const Q_DECL_OVERRIDE;
   // events:
-  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionStateChanged) Q_DECL_OVERRIDE;
-  virtual void deselectEvent(bool *selectionStateChanged) Q_DECL_OVERRIDE;
+  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
+  virtual void deselectEvent(bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
   
   // non-virtual methods:
   void setupTickVectors();
@@ -3338,8 +3338,8 @@ protected:
   virtual QCP::Interaction selectionCategory() const Q_DECL_OVERRIDE;
   void applyDefaultAntialiasingHint(QCPPainter *painter) const Q_DECL_OVERRIDE;
   // events:
-  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionStateChanged) Q_DECL_OVERRIDE;
-  virtual void deselectEvent(bool *selectionStateChanged) Q_DECL_OVERRIDE;
+  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
+  virtual void deselectEvent(bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
   
   // introduced virtual methods:
   virtual void drawLegendIcon(QCPPainter *painter, const QRectF &rect) const = 0;
@@ -3524,8 +3524,8 @@ protected:
   virtual void applyDefaultAntialiasingHint(QCPPainter *painter) const Q_DECL_OVERRIDE;
   virtual void draw(QCPPainter *painter) Q_DECL_OVERRIDE = 0;
   // events:
-  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionStateChanged) Q_DECL_OVERRIDE;
-  virtual void deselectEvent(bool *selectionStateChanged) Q_DECL_OVERRIDE;
+  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
+  virtual void deselectEvent(bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
   
   // introduced virtual methods:
   virtual QPointF anchorPixelPosition(int anchorId) const;
@@ -4726,8 +4726,8 @@ protected:
   virtual QRect clipRect() const Q_DECL_OVERRIDE;
   virtual void draw(QCPPainter *painter) Q_DECL_OVERRIDE = 0;
   // events:
-  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionStateChanged) Q_DECL_OVERRIDE;
-  virtual void deselectEvent(bool *selectionStateChanged) Q_DECL_OVERRIDE;
+  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
+  virtual void deselectEvent(bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
   
 private:
   Q_DISABLE_COPY(QCPAbstractLegendItem)
@@ -4868,8 +4868,8 @@ protected:
   virtual void applyDefaultAntialiasingHint(QCPPainter *painter) const Q_DECL_OVERRIDE;
   virtual void draw(QCPPainter *painter) Q_DECL_OVERRIDE;
   // events:
-  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionStateChanged) Q_DECL_OVERRIDE;
-  virtual void deselectEvent(bool *selectionStateChanged) Q_DECL_OVERRIDE;
+  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
+  virtual void deselectEvent(bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
   
   // non-virtual methods:
   QPen getBorderPen() const;
@@ -4958,8 +4958,8 @@ protected:
   virtual QSize minimumSizeHint() const Q_DECL_OVERRIDE;
   virtual QSize maximumSizeHint() const Q_DECL_OVERRIDE;
   // events:
-  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionStateChanged) Q_DECL_OVERRIDE;
-  virtual void deselectEvent(bool *selectionStateChanged) Q_DECL_OVERRIDE;
+  virtual void selectEvent(QMouseEvent *event, bool additive, const QVariant &details, bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
+  virtual void deselectEvent(bool *selectionModelStateChanged) Q_DECL_OVERRIDE;
   
   // non-virtual methods:
   QFont mainFont() const;

@@ -65,7 +65,7 @@ private:
     Mission *mission;
 
     QProcess *contactModel;
-    QProcess *listenController;
+    QProcess *listenModelController;
 
     UDPThread *listenerThread;
 
@@ -77,27 +77,28 @@ private:    // about system state
     void stateReady(void);
 
 private:    // about validation
-    bool validNewModel(uint8_t nState, uint8_t nControl, QString modelPath);
-    void sendValidNewDevice(uint8_t ID, uint8_t model, QString IP, uint16_t port);
+    bool validNewModel(uint8_t nModelState, uint8_t nModelControl, QString modelPath);
+    void sendValidNewDevice(UAVDevice *device);
 
 private:    // about simulation and plotting
     void initMap(void);
-    void initTimers(void);
+private slots:
+    void updateMap(void);
 
 private slots:
-    void on_newModelAdded(uint8_t nState, uint8_t nControl, float deltat,
+    void on_newModelAdded(uint8_t nModelState, uint8_t nModelControl, float deltat,
                              QString modelPath, QString modelName);
     void on_newDevAdded(uint8_t ID, uint8_t model, QString IP, uint16_t port);
     void on_newSettingReceived(uint16_t clientPort, QString clientIP);
     void on_newMissionReceived(QVector<uint8_t> initialID, QVector<QString> initialData,
                                QVector<uint8_t> targetID, QVector<QString> targetData);
     void on_controllerMessageReceived(QByteArray msg);
-
-    void on_newModelOutputGet();
+    void on_deviceSimTimeout(UAVDevice *device);
 
     void on_addDeviceButton_clicked();
     void on_addModelButton_clicked();
     void on_taskButton_clicked();
+    void on_startButton_clicked();
 
     void on_actionShow_All_Models_triggered();
     void on_actionShow_All_Devices_triggered();
