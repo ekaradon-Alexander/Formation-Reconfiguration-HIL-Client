@@ -11,9 +11,7 @@
 #include <sys/shm.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#define MAX_STATE_COUNT 15
-#define MAX_CONTROL_COUNT 10
+#include <common.h>
 
 typedef struct
 {
@@ -42,10 +40,12 @@ public:
 
     key_t shmKey;
     void *shm;
-    Data *data;
-//    float *states;
-//    float *controls;
+    float *states;
+    float *controls;
     QProcess *contactModel;
+
+private:
+    Data *data;
 
 public:
     void setStates(const float *states);

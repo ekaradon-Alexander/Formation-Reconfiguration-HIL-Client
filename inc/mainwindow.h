@@ -76,13 +76,14 @@ private:    // about system state
     void stateNoMission(void);
     void stateReady(void);
     void stateSimulation(void);
+
 private:    // about validation
     bool validNewModel(uint8_t nModelState, uint8_t nModelControl, QString modelPath);
     void sendValidNewDevice(UAVDevice *device);
 
 private:    // about simulation and plotting
     void initMap(void);
-private slots:
+    void broadcastStates(void);
     void updateMap(void);
 
 private slots:
@@ -93,6 +94,8 @@ private slots:
     void on_newMissionReceived(QVector<uint8_t> initialID, QVector<QString> initialData,
                                QVector<uint8_t> targetID, QVector<QString> targetData);
     void on_controllerMessageReceived(QByteArray msg);
+
+    void on_plotTimerTimeout();
 
     void on_addDeviceButton_clicked();
     void on_addModelButton_clicked();
