@@ -33,8 +33,6 @@ MainWindow::MainWindow(QWidget *parent) :
             this, SLOT(on_newMissionReceived(QVector<uint8_t>, QVector<QString>, QVector<uint8_t>, QVector<QString>)));
 
     sender = new QUdpSocket();
-    stateNoModel();
-
     mission = new Mission();
 
     listenerThread = new UDPThread();
@@ -44,8 +42,10 @@ MainWindow::MainWindow(QWidget *parent) :
     listenerThread->start();
 
     plotTimer = new QTimer();
-    plotTimer->setInterval(2000);
-    connect(plotTimer, SIGNAL(timeout()), this, SLOT(updateMap()));
+    plotTimer->setInterval(500);
+    connect(plotTimer, SIGNAL(timeout()), this, SLOT(on_plotTimerTimeout()));
+
+    stateNoModel();
 }
 
 MainWindow::~MainWindow()
@@ -123,6 +123,20 @@ void MainWindow::stateReady()
     initMap();
 }
 
+void MainWindow::stateSimulation(void)
+{
+    g_status == TASK_STATUS::SIMULATION;
+
+    ui->addDeviceButton->setEnabled(false);
+    ui->taskButton->setEnabled(false);
+    ui->startButton->setEnabled(false);
+    ui->stopButton->setEnabled(true);
+
+    ui->statusBar->showMessage("Simulation running");
+    consoleStr = TIME_STAMP + "Simulation running";
+    ui->console->append(consoleStr);
+}
+
 /**
  * @brief create UAV simulation model and communicate with the controller to valid the device
  * @param ID        new UAV ID
@@ -166,7 +180,7 @@ void MainWindow::on_newSettingReceived(uint16_t clientPort, QString clientIP)
 }
 
 /**
- * @brief valid new mission item and add it to mission
+ * @brief  new mission item and add it to mission
  * @param initialID
  * @param initialData
  * @param targetID
@@ -301,7 +315,7 @@ bool MainWindow::validNewModel(uint8_t nModelState, uint8_t nModelControl, QStri
     }
     int result = contactModel->execute(proStr);
 
-    if (result != 0)
+    if (result != 1)
     {
         return false;
     }
@@ -363,7 +377,7 @@ void MainWindow::initMap(void)
 
 void MainWindow::updateMap()
 {
-    qDebug() << "update map";
+    //qDebug() << "update map";
     ui->map->addGraph();
     ui->map->graph()->setLineStyle(QCPGraph::lsNone);
     ui->map->graph()->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 3));
@@ -373,8 +387,36 @@ void MainWindow::updateMap()
     {
         devices.at(i)->getLocation(x, y, z);
         ui->map->graph()->addData(x, y);
+        qDebug() << QString("update map: %1, %2").arg(x).arg(y);
     }
+    ui->map->rescaleAxes(true);
+    ui->map->xAxis->scaleRange(1.1, ui->map->xAxis->range().center());
+    ui->map->yAxis->scaleRange(1.1, ui->map->yAxis->range().center());
     ui->map->replot();
+}
+
+void MainWindow::broadcastStates()
+{
+    QHostAddress controllerAddress;
+    ClientToController msg;
+
+    msg.type = MESSAGE_TYPE::CONTROL;
+
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        controllerAddress = QHostAddress(devices.at(i)->controllerIP);
+
+        msg.ID = devices.at(i)->deviceID;
+
+        msg.payLoad.controlRequest.nModelState = devices.at(i)->modelPtr->nModelState;
+        for (uint8_t j = 0; j < msg.payLoad.controlRequest.nModelState; j++)
+        {
+              msg.payLoad.controlRequest.states[j] = devices.at(i)->states[j];
+        }
+
+        sender->writeDatagram((char *)&msg, sizeof(msg), controllerAddress,
+                                                     devices.at(i)->controllerPort);
+    }
 }
 
 /**
@@ -390,7 +432,7 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
     {
     case CONNECTION:
     {
-        for (int i = 0; i < devicesWaitForValid.length(); i++)
+        for (uint8_t i = 0; i < devicesWaitForValid.length(); i++)
         {
             if (devicesWaitForValid.at(i)->deviceID == ID)
             {
@@ -413,12 +455,26 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
             stateNoMission();
         }
     }; break;
+    case CONTROL:
+    {
+        for (int i = 0; i < devices.length(); i++)
+        {
+            if (devices.at(i)->deviceID == ID)
+            {
+                for (uint8_t j = 0; j < mmsg->payLoad.controlResult.nControllerControl; j++)
+                {
+                    devices.at(i)->controls[j] = mmsg->payLoad.controlResult.controls[j];
+                }
+            }
+        }
+    }; break;
     }
 }
 
-void MainWindow::on_deviceSimTimeout(UAVDevice *device)
+void MainWindow::on_plotTimerTimeout()
 {
-
+    broadcastStates();
+    updateMap();
 }
 
 void MainWindow::on_addDeviceButton_clicked()
@@ -458,9 +514,30 @@ void MainWindow::on_startButton_clicked()
     {
         devices.at(i)->setStates(mission->initial.at(i)->location);
     }
+    qDebug() << "init state set";
+
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        devices.at(i)->establishShm();
+    }
+    qDebug() << "shared memory set";
+
     for (uint8_t i = 0; i < devices.length(); i++)
     {
         devices.at(i)->simTimer->start();
     }
+    qDebug() << "simTimer start";
+
     plotTimer->start();
+
+    stateSimulation();
+}
+
+void MainWindow::on_stopButton_clicked()
+{
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        devices.at(i)->destroyShm();
+    }
+    plotTimer->stop();
 }

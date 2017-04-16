@@ -8,6 +8,17 @@
 #include <QHostAddress>
 #include <qcustomplot.h>
 #include <QProcess>
+#include <sys/shm.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <common.h>
+
+typedef struct
+{
+    uint8_t shmCtl;
+    float states[MAX_STATE_COUNT];
+    float controls[MAX_CONTROL_COUNT];
+} Data;
 
 class UAVDevice : public QObject
 {
@@ -26,14 +37,22 @@ public:
     QHostAddress controllerIP;
     int16_t controllerPort;
     QTimer *simTimer;
+
+    key_t shmKey;
+    void *shm;
     float *states;
     float *controls;
     QProcess *contactModel;
+
+private:
+    Data *data;
 
 public:
     void setStates(const float *states);
     void getLocation(float &x, float &y, float &z);
     void requestUpdateStates(void);
+    void establishShm(void);
+    void destroyShm(void);
 
 private slots:
     void on_timeOut(void);

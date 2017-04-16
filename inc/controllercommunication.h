@@ -2,10 +2,12 @@
 #define CONTROLLERCOMMUNICATION_H
 
 #include <inttypes.h>
+#include <common.h>
 
 enum MESSAGE_TYPE
 {
     CONNECTION,
+    CONTROL,
 };
 
 /**
@@ -22,6 +24,12 @@ union ControllerToClientPayLoad
     {
         uint8_t valid;      // result of controller validation, 0x01 for success
     } connectionResult;
+
+    struct
+    {
+        uint8_t nControllerControl;     // number of controls
+        float controls[MAX_CONTROL_COUNT];
+    } controlResult;
 };
 
 typedef struct _ControllerToClient
@@ -51,6 +59,11 @@ union ClientToControllerPayLoad
         // number of state in the CONTROLLER should be less or equal to nModelState
     } connectionRequest;
 
+    struct
+    {
+        uint8_t nModelState;
+        float states[MAX_STATE_COUNT];
+    } controlRequest;
 };
 
 typedef struct ClientToController

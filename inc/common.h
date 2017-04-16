@@ -8,6 +8,9 @@
 
 #define TIME_STAMP ("[" + QDateTime::currentDateTime().toString("mm:ss") + "] ")
 
+#define MAX_STATE_COUNT 10
+#define MAX_CONTROL_COUNT 4
+
 enum TASK_STATUS
 {
     NO_MODEL,
