@@ -75,7 +75,7 @@ private:    // about system state
     void stateNoDevice(void);
     void stateNoMission(void);
     void stateReady(void);
-
+    void stateSimulation(void);
 private:    // about validation
     bool validNewModel(uint8_t nModelState, uint8_t nModelControl, QString modelPath);
     void sendValidNewDevice(UAVDevice *device);
@@ -93,7 +93,6 @@ private slots:
     void on_newMissionReceived(QVector<uint8_t> initialID, QVector<QString> initialData,
                                QVector<uint8_t> targetID, QVector<QString> targetData);
     void on_controllerMessageReceived(QByteArray msg);
-    void on_deviceSimTimeout(UAVDevice *device);
 
     void on_addDeviceButton_clicked();
     void on_addModelButton_clicked();
@@ -104,6 +103,7 @@ private slots:
     void on_actionShow_All_Devices_triggered();
     void on_actionSet_triggered();
 
+    void on_stopButton_clicked();
 };
 
 #endif // MAINWINDOW_H
