@@ -125,7 +125,7 @@ void MainWindow::stateReady()
 
 void MainWindow::stateSimulation(void)
 {
-    g_status == TASK_STATUS::SIMULATION;
+    g_status = TASK_STATUS::SIMULATION;
 
     ui->addDeviceButton->setEnabled(false);
     ui->taskButton->setEnabled(false);
@@ -245,11 +245,9 @@ void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QStri
         }
 
         // add new mission item
-        qDebug() << initState.length() << targetState.length();
         mission->updateMissionItem(deviceID, initState, targetState);
     }
 
-    mission->dispMissionItem();
     stateReady();
 }
 
@@ -377,7 +375,6 @@ void MainWindow::initMap(void)
 
 void MainWindow::updateMap()
 {
-    //qDebug() << "update map";
     ui->map->addGraph();
     ui->map->graph()->setLineStyle(QCPGraph::lsNone);
     ui->map->graph()->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 3));
@@ -387,7 +384,6 @@ void MainWindow::updateMap()
     {
         devices.at(i)->getLocation(x, y, z);
         ui->map->graph()->addData(x, y);
-        qDebug() << QString("update map: %1, %2").arg(x).arg(y);
     }
     ui->map->rescaleAxes(true);
     ui->map->xAxis->scaleRange(1.1, ui->map->xAxis->range().center());
@@ -514,19 +510,16 @@ void MainWindow::on_startButton_clicked()
     {
         devices.at(i)->setStates(mission->initial.at(i)->location);
     }
-    qDebug() << "init state set";
 
     for (uint8_t i = 0; i < devices.length(); i++)
     {
         devices.at(i)->establishShm();
     }
-    qDebug() << "shared memory set";
 
     for (uint8_t i = 0; i < devices.length(); i++)
     {
         devices.at(i)->simTimer->start();
     }
-    qDebug() << "simTimer start";
 
     plotTimer->start();
 

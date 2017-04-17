@@ -52,8 +52,6 @@ void UAVDevice::setStates(const float *states)
     {
         this->states[i] = states[i];
     }
-    qDebug() << QString("set states: %1, %2").arg(this->states[0]).arg(this->states[1]);
-
 }
 
 void UAVDevice::getLocation(float &x, float &y, float &z)
@@ -61,8 +59,6 @@ void UAVDevice::getLocation(float &x, float &y, float &z)
     x = states[0];
     y = states[1];
     z = states[2];
-    qDebug() << QString("get location: %1, %2").arg(this->states[0]).arg(this->states[1]);
-
 }
 
 void UAVDevice::establishShm(void)
@@ -88,7 +84,6 @@ void UAVDevice::establishShm(void)
     // send message to set up shared memory in contactModel process
     QStringList params;
     params.append(QString::number(shmKey));
-    qDebug() << QString("shm key = %1, addr = %2").arg((int)shmKey).arg((long)shm);
     data->shmCtl = 1;
     contactModel->start(modelPtr->modelPath, params);
 }
