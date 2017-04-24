@@ -26,6 +26,7 @@ private:
 
 public:
     void addNewModelToCombo(uint8_t nModelState, uint8_t nModelControl, QString modelName);
+    void incrementDeviceID(uint8_t currentDeviceNumber);
 };
 
 #endif // ADDDEVICEDIALOG_H

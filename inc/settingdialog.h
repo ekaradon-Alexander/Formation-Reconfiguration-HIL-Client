@@ -21,7 +21,8 @@ private:
     Ui::SettingDialog *ui;
 
 signals:
-    void sendSettingData(uint16_t clientPort, QString clientIP);
+    void sendSettingData(uint16_t clientPort, QString clientIP,
+                         uint16_t plottingTime, uint16_t controlTime);
 private slots:
     void on_buttonBox_accepted();
     void on_refresh_pushButton_clicked();

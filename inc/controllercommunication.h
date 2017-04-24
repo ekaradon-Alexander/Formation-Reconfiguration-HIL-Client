@@ -7,6 +7,7 @@
 enum MESSAGE_TYPE
 {
     CONNECTION,
+    MISSION,
     CONTROL,
 };
 
@@ -24,6 +25,11 @@ union ControllerToClientPayLoad
     {
         uint8_t valid;      // result of controller validation, 0x01 for success
     } connectionResult;
+
+    struct
+    {
+        uint8_t ack;
+    } targetAck;
 
     struct
     {
@@ -61,8 +67,16 @@ union ClientToControllerPayLoad
 
     struct
     {
+        uint8_t nTargetState;
+        uint8_t nDevices;
+        float targetStates[MAX_STATE_COUNT];
+    } targetInfo;
+
+    struct
+    {
         uint8_t nModelState;
-        float states[MAX_STATE_COUNT];
+        float selfStates[MAX_STATE_COUNT];
+        float centerStates[MAX_STATE_COUNT];
     } controlRequest;
 };
 

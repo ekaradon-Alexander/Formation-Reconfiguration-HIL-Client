@@ -27,7 +27,6 @@ private slots:
 
 private:
     Ui::AddModelDialog *ui;
-    QString modelPath;
 };
 
 #endif // ADDMODELDIALOG_H

@@ -9,7 +9,7 @@ QT       += network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
-TARGET = test
+TARGET = Formation_HIL_Client
 TEMPLATE = app
 
 INCLUDEPATH += ./inc

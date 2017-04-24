@@ -20,7 +20,9 @@ SettingDialog::~SettingDialog()
 void SettingDialog::on_buttonBox_accepted()
 {
     emit sendSettingData(static_cast<uint16_t>(ui->port_spinBox->value()),
-                         ui->ip_comboBox->currentText());
+                         ui->ip_comboBox->currentText(),
+                         static_cast<uint16_t>(ui->plotting_spinBox->value()),
+                         static_cast<uint16_t>(ui->control_spinBox->value()));
 }
 
 void SettingDialog::refreshIPAddress(void)
@@ -54,10 +56,22 @@ void SettingDialog::showEvent(QShowEvent *)
     if (g_status == TASK_STATUS::NO_MODEL || g_status == TASK_STATUS::NO_DEVICE)
     {
         ui->network_groupBox->setEnabled(true);
+        ui->network_groupBox->setTitle("Network");
     }
     else
     {
         ui->network_groupBox->setEnabled(false);
-        ui->network_groupBox->setTitle("Network (available before add device)");
+        ui->network_groupBox->setTitle("Network (available before add device)");     
+    }
+
+    if (g_status == TASK_STATUS::SIMULATION)
+    {
+        ui->timer_groupBox->setEnabled(false);
+        ui->timer_groupBox->setTitle("Timer (avaliable before start simulation");
+    }
+    else
+    {
+        ui->timer_groupBox->setEnabled(true);
+        ui->timer_groupBox->setTitle("Timer");
     }
 }

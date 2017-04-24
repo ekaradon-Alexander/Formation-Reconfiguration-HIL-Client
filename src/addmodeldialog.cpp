@@ -16,21 +16,21 @@ AddModelDialog::~AddModelDialog()
 
 void AddModelDialog::on_buttonBox_accepted()
 {
-    if (!modelPath.isEmpty())
+    if (!(ui->modelPathDisp->text().isEmpty()))
     {
         emit sendNewModelData(static_cast<uint8_t>(ui->nState->value()),
                               static_cast<uint8_t>(ui->nControl->value()),
                               ui->deltat->value(),
-                              this->modelPath,
+                              ui->modelPathDisp->text(),
                               ui->modelName->text());
     }
 }
 
 void AddModelDialog::on_modelPath_clicked()
 {
-    modelPath = QFileDialog::getOpenFileName(this,
+    QString tempModelPath = QFileDialog::getOpenFileName(this,
                                              tr("Select model"),
                                              ".",
                                              tr("Executable File (*)"));
-    ui->modelPathDisp->setText(modelPath);
+    ui->modelPathDisp->setText(tempModelPath);
 }

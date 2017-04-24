@@ -47,6 +47,8 @@ private:
     QString consoleStr;
 
     QTimer *plotTimer;
+    QTimer *controlTimer;
+
     QVector<QTimer *> modelTimers;
 
     AddDeviceDialog *addDeviceDialog;
@@ -69,6 +71,8 @@ private:
 
     UDPThread *listenerThread;
 
+    QVector<double> minimapXdata;
+    QVector<double> minimapYdata;
 
 private:    // about system state
     void stateNoModel(void);
@@ -76,6 +80,7 @@ private:    // about system state
     void stateNoMission(void);
     void stateReady(void);
     void stateSimulation(void);
+    void stateStop(void);
 
 private:    // about validation
     bool validNewModel(uint8_t nModelState, uint8_t nModelControl, QString modelPath);
@@ -85,28 +90,31 @@ private:    // about simulation and plotting
     void initMap(void);
     void broadcastStates(void);
     void updateMap(void);
+    void uploadMission(void);
 
 private slots:
     void on_newModelAdded(uint8_t nModelState, uint8_t nModelControl, float deltat,
                              QString modelPath, QString modelName);
     void on_newDevAdded(uint8_t ID, uint8_t model, QString IP, uint16_t port);
-    void on_newSettingReceived(uint16_t clientPort, QString clientIP);
+    void on_newSettingReceived(uint16_t clientPort, QString clientIP,
+                               uint16_t plittingTime, uint16_t controlTime);
     void on_newMissionReceived(QVector<uint8_t> initialID, QVector<QString> initialData,
                                QVector<uint8_t> targetID, QVector<QString> targetData);
     void on_controllerMessageReceived(QByteArray msg);
 
     void on_plotTimerTimeout();
-
-    void on_addDeviceButton_clicked();
-    void on_addModelButton_clicked();
-    void on_taskButton_clicked();
-    void on_startButton_clicked();
+    void on_controlTimerTimeout();
 
     void on_actionShow_All_Models_triggered();
     void on_actionShow_All_Devices_triggered();
     void on_actionSet_triggered();
 
-    void on_stopButton_clicked();
+    void on_actionAbout_triggered();
+    void on_actionAdd_Model_triggered();
+    void on_actionAdd_Device_triggered();
+    void on_actionMission_triggered();
+    void on_actionStart_triggered();
+    void on_actionStop_triggered();
 };
 
 #endif // MAINWINDOW_H

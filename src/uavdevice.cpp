@@ -54,11 +54,11 @@ void UAVDevice::setStates(const float *states)
     }
 }
 
-void UAVDevice::getLocation(float &x, float &y, float &z)
+void UAVDevice::getLocation(float *px, float *py, float *pz)
 {
-    x = states[0];
-    y = states[1];
-    z = states[2];
+    *px = states[0];
+    *py = states[1];
+    *pz = states[2];
 }
 
 void UAVDevice::establishShm(void)
@@ -93,6 +93,7 @@ void UAVDevice::destroyShm()
     simTimer->stop();
     usleep(15);
     contactModel->kill();
+    shmdt(data);
 }
 
 void UAVDevice::requestUpdateStates(void)

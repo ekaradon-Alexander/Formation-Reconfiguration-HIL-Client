@@ -26,3 +26,8 @@ void AddDeviceDialog::addNewModelToCombo(uint8_t nState, uint8_t nControl, QStri
     ui->model->addItem(modelName + " [" + QString::number(nState) + " state(s), "
                        + QString::number(nControl) + " input(s)]");
 }
+
+void AddDeviceDialog::incrementDeviceID(uint8_t currentDeviceNumber)
+{
+    ui->ID->setValue(currentDeviceNumber + 1);
+}

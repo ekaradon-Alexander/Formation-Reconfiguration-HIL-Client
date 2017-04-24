@@ -8,8 +8,19 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    ui->actionAdd_Model->setShortcut(QKeySequence("Ctrl+1"));
+    ui->actionAdd_Device->setShortcut(QKeySequence("Ctrl+2"));
+    ui->actionMission->setShortcut(QKeySequence("Ctrl+3"));
+    ui->actionStart->setShortcut(QKeySequence("Ctrl+4"));
+    ui->actionStop->setShortcut(QKeySequence("Ctrl+5"));
+
+    ui->actionShow_All_Models->setShortcut(QKeySequence("Ctrl+Shift+M"));
+    ui->actionShow_All_Devices->setShortcut(QKeySequence("Ctrl+Shift+D"));
+
+    ui->actionSet->setShortcut(QKeySequence("Ctrl+,"));
+
     ui->menuBar->setNativeMenuBar(false);
-    ui->map->setEnabled(false);
 
     addModelDialog = new AddModelDialog(this);
     connect(addModelDialog, SIGNAL(sendNewModelData(uint8_t, uint8_t, float, QString, QString)),
@@ -20,15 +31,15 @@ MainWindow::MainWindow(QWidget *parent) :
             this, SLOT(on_newDevAdded(uint8_t, uint8_t, QString, uint16_t)));
 
     settingDialog = new SettingDialog(this);
-    connect(settingDialog, SIGNAL(sendSettingData(uint16_t, QString)),
-            this, SLOT(on_newSettingReceived(uint16_t, QString)));
+    connect(settingDialog, SIGNAL(sendSettingData(uint16_t, QString, uint16_t, uint16_t)),
+            this, SLOT(on_newSettingReceived(uint16_t, QString, uint16_t, uint16_t)));
 
     contactModel = new QProcess();
 
     modelViewDialog = new ModelViewDialog();
     deviceViewDialog = new DeviceViewDialog();
 
-    missionDialog = new MissionDialog();
+    missionDialog = new MissionDialog(this);
     connect(missionDialog, SIGNAL(sendNewMissionData(QVector<uint8_t>, QVector<QString>, QVector<uint8_t>, QVector<QString>)),
             this, SLOT(on_newMissionReceived(QVector<uint8_t>, QVector<QString>, QVector<uint8_t>, QVector<QString>)));
 
@@ -42,8 +53,12 @@ MainWindow::MainWindow(QWidget *parent) :
     listenerThread->start();
 
     plotTimer = new QTimer();
-    plotTimer->setInterval(500);
+    //    plotTimer->setInterval(100);
     connect(plotTimer, SIGNAL(timeout()), this, SLOT(on_plotTimerTimeout()));
+
+    controlTimer = new QTimer();
+    //    controlTimer->setInterval(500);
+    connect(controlTimer, SIGNAL(timeout()), this, SLOT(on_controlTimerTimeout()));
 
     stateNoModel();
 }
@@ -60,10 +75,11 @@ void MainWindow::stateNoModel(void)
 {
     g_status = TASK_STATUS::NO_MODEL;
 
-    ui->addDeviceButton->setEnabled(false);
-    ui->taskButton->setEnabled(false);
-    ui->startButton->setEnabled(false);
-    ui->stopButton->setEnabled(false);
+    ui->actionAdd_Model->setEnabled(true);
+    ui->actionAdd_Device->setEnabled(false);
+    ui->actionMission->setEnabled(false);
+    ui->actionStart->setEnabled(false);
+    ui->actionStop->setEnabled(false);
 
     ui->statusBar->showMessage("No model");
     consoleStr = TIME_STAMP + "No model";
@@ -77,10 +93,11 @@ void MainWindow::stateNoDevice(void)
 {
     g_status = TASK_STATUS::NO_DEVICE;
 
-    ui->addDeviceButton->setEnabled(true);
-    ui->taskButton->setEnabled(false);
-    ui->startButton->setEnabled(false);
-    ui->stopButton->setEnabled(false);
+    ui->actionAdd_Model->setEnabled(true);
+    ui->actionAdd_Device->setEnabled(true);
+    ui->actionMission->setEnabled(false);
+    ui->actionStart->setEnabled(false);
+    ui->actionStop->setEnabled(false);
 
     ui->statusBar->showMessage("No device");
     consoleStr = TIME_STAMP + "No device";
@@ -94,10 +111,11 @@ void MainWindow::stateNoMission(void)
 {
     g_status = TASK_STATUS::NO_MISSION;
 
-    ui->addDeviceButton->setEnabled(true);
-    ui->taskButton->setEnabled(true);
-    ui->startButton->setEnabled(false);
-    ui->stopButton->setEnabled(false);
+    ui->actionAdd_Model->setEnabled(true);
+    ui->actionAdd_Device->setEnabled(true);
+    ui->actionMission->setEnabled(true);
+    ui->actionStart->setEnabled(false);
+    ui->actionStop->setEnabled(false);
 
     ui->statusBar->showMessage("No task");
     consoleStr = TIME_STAMP + "No task";
@@ -111,15 +129,17 @@ void MainWindow::stateReady()
 {
     g_status = TASK_STATUS::READY;
 
-    ui->addDeviceButton->setEnabled(true);
-    ui->taskButton->setEnabled(true);
-    ui->startButton->setEnabled(true);
-    ui->stopButton->setEnabled(false);
+    ui->actionAdd_Model->setEnabled(true);
+    ui->actionAdd_Device->setEnabled(true);
+    ui->actionMission->setEnabled(true);
+    ui->actionStart->setEnabled(true);
+    ui->actionStop->setEnabled(false);
 
     ui->statusBar->showMessage("Ready");
     consoleStr = TIME_STAMP + "Ready";
     ui->console->append(consoleStr);
 
+    ui->actionStop->setText("Stop");
     initMap();
 }
 
@@ -127,14 +147,28 @@ void MainWindow::stateSimulation(void)
 {
     g_status = TASK_STATUS::SIMULATION;
 
-    ui->addDeviceButton->setEnabled(false);
-    ui->taskButton->setEnabled(false);
-    ui->startButton->setEnabled(false);
-    ui->stopButton->setEnabled(true);
+    ui->actionAdd_Model->setEnabled(false);
+    ui->actionAdd_Device->setEnabled(false);
+    ui->actionMission->setEnabled(false);
+    ui->actionStart->setEnabled(false);
+    ui->actionStop->setEnabled(true);
 
     ui->statusBar->showMessage("Simulation running");
     consoleStr = TIME_STAMP + "Simulation running";
     ui->console->append(consoleStr);
+}
+
+void MainWindow::stateStop(void)
+{
+    g_status = TASK_STATUS::STOP;
+
+    ui->actionAdd_Model->setEnabled(true);
+    ui->actionAdd_Device->setEnabled(true);
+    ui->actionMission->setEnabled(true);
+    ui->actionStart->setEnabled(true);
+    ui->actionStop->setEnabled(true);
+
+    ui->actionStop->setText("Reset");
 }
 
 /**
@@ -173,10 +207,13 @@ void MainWindow::on_newDevAdded(uint8_t deviceID, uint8_t modelID,
  * @param clientPort    client port in setting window
  * @param clientIP      client IP in setting window
  */
-void MainWindow::on_newSettingReceived(uint16_t clientPort, QString clientIP)
+void MainWindow::on_newSettingReceived(uint16_t clientPort, QString clientIP,
+                                       uint16_t plottingTime, uint16_t controlTime)
 {
     g_setting.clientPort = clientPort;
     g_setting.clientIP = clientIP;
+    g_setting.plottingTime = plottingTime;
+    g_setting.controlTime = controlTime;
 }
 
 /**
@@ -248,6 +285,7 @@ void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QStri
         mission->updateMissionItem(deviceID, initState, targetState);
     }
 
+    uploadMission();
     stateReady();
 }
 
@@ -341,62 +379,136 @@ void MainWindow::sendValidNewDevice(UAVDevice *device)
 
 void MainWindow::initMap(void)
 {
-    ui->map->setEnabled(true);
+    // on map: add initial position
     ui->map->xAxis->setLabel("x [m]");
     ui->map->yAxis->setLabel("y [m]");
 
-    // add mission initial locations
     ui->map->addGraph();
     for (uint8_t i = 0; i < devices.length(); i++)
     {
         ui->map->graph(0)->addData(mission->initial.at(i)->location[0],
                 mission->initial.at(i)->location[1]);
     }
-    ui->map->graph(0)->setAntialiased(true);
     ui->map->graph(0)->setLineStyle(QCPGraph::lsNone);
     ui->map->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 10));
 
-    // add mission target locations
-    ui->map->addGraph();
     for (uint8_t i = 0; i < devices.length(); i++)
     {
-        ui->map->graph(1)->addData(mission->target.at(i)->location[0],
-                mission->target.at(i)->location[1]);
+        ui->map->addGraph();
+        ui->map->graph(i + 1)->addData(mission->initial.at(i)->location[0],
+                mission->initial.at(i)->location[1]);
+        ui->map->graph(i + 1)->setLineStyle(QCPGraph::lsNone);
+        ui->map->graph(i + 1)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 1));
     }
-    ui->map->graph(1)->setAntialiased(true);
-    ui->map->graph(1)->setLineStyle(QCPGraph::lsNone);
-    ui->map->graph(1)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCross, 10));
 
     ui->map->rescaleAxes(true);
     ui->map->xAxis->scaleRange(1.1, ui->map->xAxis->range().center());
     ui->map->yAxis->scaleRange(1.1, ui->map->yAxis->range().center());
     ui->map->replot();
+
+    // on minimap: add target relative position
+    ui->minimap->xAxis->setLabel("relative x [m]");
+    ui->minimap->yAxis->setLabel("relative y [m]");
+
+    ui->minimap->addGraph();
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        ui->minimap->graph(0)->addData(mission->target.at(i)->location[0],
+                mission->target.at(i)->location[1]);
+    }
+    ui->minimap->graph(0)->setLineStyle(QCPGraph::lsNone);
+    ui->minimap->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCross, 5));
+
+    ui->minimap->addGraph();
+    ui->minimap->graph(1)->setLineStyle(QCPGraph::lsNone);
+    ui->minimap->graph(1)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 3));
+
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        minimapXdata.append(mission->initial.at(i)->location[0] -
+                mission->initial.at(0)->location[0]);
+        minimapYdata.append(mission->initial.at(i)->location[1] -
+                mission->initial.at(0)->location[1]);
+    }
+
+    ui->minimap->graph(1)->setData(minimapXdata, minimapYdata);
+
+    ui->minimap->rescaleAxes(true);
+    ui->minimap->xAxis->scaleRange(1.1, ui->minimap->xAxis->range().center());
+    ui->minimap->yAxis->scaleRange(1.1, ui->minimap->yAxis->range().center());
+    ui->minimap->replot();
 }
 
 void MainWindow::updateMap()
 {
-    ui->map->addGraph();
-    ui->map->graph()->setLineStyle(QCPGraph::lsNone);
-    ui->map->graph()->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 3));
-
     float x, y, z;
     for (uint8_t i = 0; i < devices.length(); i++)
     {
-        devices.at(i)->getLocation(x, y, z);
-        ui->map->graph()->addData(x, y);
+        devices.at(i)->getLocation(&x, &y, &z);
+        ui->map->graph(i + 1)->addData(x, y);
+        minimapXdata[i] = devices.at(i)->states[0] - devices.at(0)->states[0];
+        minimapYdata[i] = devices.at(i)->states[1] - devices.at(0)->states[1];
     }
+
     ui->map->rescaleAxes(true);
     ui->map->xAxis->scaleRange(1.1, ui->map->xAxis->range().center());
     ui->map->yAxis->scaleRange(1.1, ui->map->yAxis->range().center());
     ui->map->replot();
+
+    ui->minimap->graph(1)->setData(minimapXdata, minimapYdata);
+    ui->minimap->rescaleAxes(true);
+    ui->minimap->xAxis->scaleRange(1.1, ui->minimap->xAxis->range().center());
+    ui->minimap->yAxis->scaleRange(1.1, ui->minimap->yAxis->range().center());
+    ui->minimap->replot();
 }
 
-void MainWindow::broadcastStates()
+void MainWindow::uploadMission(void)
+{
+    QHostAddress controllerAddress;
+    ClientToController msg;
+
+    msg.type = MESSAGE_TYPE::MISSION;
+
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        controllerAddress = QHostAddress(devices.at(i)->controllerIP);
+
+        msg.ID = devices.at(i)->deviceID;
+        msg.payLoad.targetInfo.nDevices = devices.length();
+
+        for (uint8_t j = 0; j < mission->target.length(); j++)
+        {
+            if (msg.ID == mission->target.at(j)->ID)
+            {
+                msg.payLoad.targetInfo.nTargetState = mission->target.at(j)->length;
+                for (uint8_t k = 0; k < mission->target.at(j)->length; k++)
+                {
+                    msg.payLoad.targetInfo.targetStates[k] = mission->target.at(j)->location[k];
+                }
+                break;
+            }
+        }
+
+        sender->writeDatagram((char *)&msg, sizeof(msg), controllerAddress,
+                              devices.at(i)->controllerPort);
+    }
+}
+
+void MainWindow::broadcastStates(void)
 {
     QHostAddress controllerAddress;
     ClientToController msg;
 
     msg.type = MESSAGE_TYPE::CONTROL;
+    uint8_t centerIndex;
+
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        if (devices.at(i)->deviceID == 1)
+        {
+            centerIndex = i;
+        }
+    }
 
     for (uint8_t i = 0; i < devices.length(); i++)
     {
@@ -407,11 +519,12 @@ void MainWindow::broadcastStates()
         msg.payLoad.controlRequest.nModelState = devices.at(i)->modelPtr->nModelState;
         for (uint8_t j = 0; j < msg.payLoad.controlRequest.nModelState; j++)
         {
-              msg.payLoad.controlRequest.states[j] = devices.at(i)->states[j];
+            msg.payLoad.controlRequest.selfStates[j] = devices.at(i)->states[j];
+            msg.payLoad.controlRequest.centerStates[j] = devices.at(centerIndex)->states[j];
         }
 
         sender->writeDatagram((char *)&msg, sizeof(msg), controllerAddress,
-                                                     devices.at(i)->controllerPort);
+                              devices.at(i)->controllerPort);
     }
 }
 
@@ -469,18 +582,12 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
 
 void MainWindow::on_plotTimerTimeout()
 {
-    broadcastStates();
     updateMap();
 }
 
-void MainWindow::on_addDeviceButton_clicked()
+void MainWindow::on_controlTimerTimeout()
 {
-    addDeviceDialog->exec();
-}
-
-void MainWindow::on_addModelButton_clicked()
-{
-    addModelDialog->exec();
+    broadcastStates();
 }
 
 void MainWindow::on_actionShow_All_Models_triggered()
@@ -499,12 +606,29 @@ void MainWindow::on_actionShow_All_Devices_triggered()
     deviceViewDialog->exec();
 }
 
-void MainWindow::on_taskButton_clicked()
+void MainWindow::on_actionAbout_triggered()
+{
+    QMessageBox::information(0, "About", QString("Bulid time: %1 %2").arg(__DATE__).arg(__TIME__),
+                             QMessageBox::Ok);
+}
+
+void MainWindow::on_actionAdd_Model_triggered()
+{
+    addModelDialog->exec();
+}
+
+void MainWindow::on_actionAdd_Device_triggered()
+{
+    addDeviceDialog->incrementDeviceID(devices.length());
+    addDeviceDialog->exec();
+}
+
+void MainWindow::on_actionMission_triggered()
 {
     missionDialog->exec();
 }
 
-void MainWindow::on_startButton_clicked()
+void MainWindow::on_actionStart_triggered()
 {
     for (uint8_t i = 0; i < devices.length(); i++)
     {
@@ -521,16 +645,39 @@ void MainWindow::on_startButton_clicked()
         devices.at(i)->simTimer->start();
     }
 
+    plotTimer->setInterval(g_setting.plottingTime);
     plotTimer->start();
+
+    controlTimer->setInterval(g_setting.controlTime);
+    controlTimer->start();
 
     stateSimulation();
 }
 
-void MainWindow::on_stopButton_clicked()
+void MainWindow::on_actionStop_triggered()
 {
-    for (uint8_t i = 0; i < devices.length(); i++)
+    if (g_status == TASK_STATUS::SIMULATION)
     {
-        devices.at(i)->destroyShm();
+        for (uint8_t i = 0; i < devices.length(); i++)
+        {
+            devices.at(i)->destroyShm();
+        }
+        plotTimer->stop();
+        controlTimer->stop();
+
+        for (uint8_t i = 0; i < devices.length(); i++)
+        {
+            memset(devices.at(i)->controls, 0, sizeof(float) * MAX_CONTROL_COUNT);
+        }
+
+        stateStop();
     }
-    plotTimer->stop();
+    else if (g_status == TASK_STATUS::STOP)
+    {
+        ui->map->clearGraphs();
+        ui->minimap->clearGraphs();
+        minimapXdata.clear();
+        minimapYdata.clear();
+        stateReady();
+    }
 }

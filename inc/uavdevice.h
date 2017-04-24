@@ -49,7 +49,7 @@ private:
 
 public:
     void setStates(const float *states);
-    void getLocation(float &x, float &y, float &z);
+    void getLocation(float *px, float *py, float *pz);
     void requestUpdateStates(void);
     void establishShm(void);
     void destroyShm(void);
