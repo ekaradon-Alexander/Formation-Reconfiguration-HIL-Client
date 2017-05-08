@@ -32,3 +32,8 @@ void DeviceViewDialog::addNewItem(uint8_t ID, QString modelName, QString IP, uin
     ui->viewTableWidget->setItem(ui->viewTableWidget->rowCount() - 1, 3,
                                  new QTableWidgetItem(QString::number(port)));
 }
+
+void DeviceViewDialog::on_reconnectPushButton_clicked()
+{
+    emit sendReconnectButton();
+}

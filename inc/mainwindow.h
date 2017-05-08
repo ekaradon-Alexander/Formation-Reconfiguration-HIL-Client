@@ -71,8 +71,10 @@ private:
 
     UDPThread *listenerThread;
 
-    QVector<double> minimapXdata;
-    QVector<double> minimapYdata;
+    QVector<QVector<double>> minimapXdata;
+    QVector<QVector<double>> minimapYdata;
+
+    QVector<QColor> colorList;
 
 private:    // about system state
     void stateNoModel(void);
@@ -101,6 +103,7 @@ private slots:
     void on_newMissionReceived(QVector<uint8_t> initialID, QVector<QString> initialData,
                                QVector<uint8_t> targetID, QVector<QString> targetData);
     void on_controllerMessageReceived(QByteArray msg);
+    void on_reconnectMessageReceived(void);
 
     void on_plotTimerTimeout();
     void on_controlTimerTimeout();

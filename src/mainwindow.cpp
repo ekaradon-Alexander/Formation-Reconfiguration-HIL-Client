@@ -36,8 +36,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     contactModel = new QProcess();
 
-    modelViewDialog = new ModelViewDialog();
-    deviceViewDialog = new DeviceViewDialog();
+    modelViewDialog = new ModelViewDialog(this);
+    deviceViewDialog = new DeviceViewDialog(this);
+    connect(deviceViewDialog, SIGNAL(sendReconnectButton()),
+            this, SLOT(on_reconnectMessageReceived()));
 
     missionDialog = new MissionDialog(this);
     connect(missionDialog, SIGNAL(sendNewMissionData(QVector<uint8_t>, QVector<QString>, QVector<uint8_t>, QVector<QString>)),
@@ -60,6 +62,7 @@ MainWindow::MainWindow(QWidget *parent) :
     //    controlTimer->setInterval(500);
     connect(controlTimer, SIGNAL(timeout()), this, SLOT(on_controlTimerTimeout()));
 
+    ui->height->xAxis->setVisible(false);
     stateNoModel();
 }
 
@@ -383,22 +386,38 @@ void MainWindow::initMap(void)
     ui->map->xAxis->setLabel("x [m]");
     ui->map->yAxis->setLabel("y [m]");
 
-    ui->map->addGraph();
     for (uint8_t i = 0; i < devices.length(); i++)
     {
-        ui->map->graph(0)->addData(mission->initial.at(i)->location[0],
-                mission->initial.at(i)->location[1]);
+        colorList.append(QColor(
+                             200.0 * (float)(rand()) / RAND_MAX,
+                             200.0 * (float)(rand()) / RAND_MAX,
+                             200.0 * (float)(rand()) / RAND_MAX));
     }
-    ui->map->graph(0)->setLineStyle(QCPGraph::lsNone);
-    ui->map->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 10));
 
-    for (uint8_t i = 0; i < devices.length(); i++)
+    for (uint8_t i = 0; i < devices.length(); i++)  // graphs 0 ~ (length-1): identify current location
     {
         ui->map->addGraph();
-        ui->map->graph(i + 1)->addData(mission->initial.at(i)->location[0],
+        QPen pen;
+        pen.setColor(colorList.at(i));
+
+        ui->map->graph(i)->setPen(pen);
+        ui->map->graph(i)->addData(mission->initial.at(i)->location[0],
                 mission->initial.at(i)->location[1]);
-        ui->map->graph(i + 1)->setLineStyle(QCPGraph::lsNone);
-        ui->map->graph(i + 1)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 1));
+        ui->map->graph(i)->setLineStyle(QCPGraph::lsNone);
+        ui->map->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 1));
+    }
+
+    for (uint8_t i = devices.length(); i < 2 * devices.length(); i++)
+    {
+        ui->map->addGraph();
+        QPen pen;
+        pen.setColor(colorList.at(i - devices.length()));
+
+        ui->map->graph(i)->setPen(pen);
+        ui->map->graph(i)->addData(mission->initial.at(i - devices.length())->location[0],
+                mission->initial.at(i - devices.length())->location[1]);
+        ui->map->graph(i)->setLineStyle(QCPGraph::lsNone);
+        ui->map->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 7));
     }
 
     ui->map->rescaleAxes(true);
@@ -410,28 +429,44 @@ void MainWindow::initMap(void)
     ui->minimap->xAxis->setLabel("relative x [m]");
     ui->minimap->yAxis->setLabel("relative y [m]");
 
-    ui->minimap->addGraph();
+    minimapXdata.resize(devices.length());
+    minimapYdata.resize(devices.length());
     for (uint8_t i = 0; i < devices.length(); i++)
     {
-        ui->minimap->graph(0)->addData(mission->target.at(i)->location[0],
-                mission->target.at(i)->location[1]);
-    }
-    ui->minimap->graph(0)->setLineStyle(QCPGraph::lsNone);
-    ui->minimap->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCross, 5));
-
-    ui->minimap->addGraph();
-    ui->minimap->graph(1)->setLineStyle(QCPGraph::lsNone);
-    ui->minimap->graph(1)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 3));
-
-    for (uint8_t i = 0; i < devices.length(); i++)
-    {
-        minimapXdata.append(mission->initial.at(i)->location[0] -
+        minimapXdata[i].resize(1);
+        minimapYdata[i].resize(1);
+        minimapXdata[i][0] = (mission->initial.at(i)->location[0] -
                 mission->initial.at(0)->location[0]);
-        minimapYdata.append(mission->initial.at(i)->location[1] -
+        minimapYdata[i][0] = (mission->initial.at(i)->location[1] -
                 mission->initial.at(0)->location[1]);
     }
 
-    ui->minimap->graph(1)->setData(minimapXdata, minimapYdata);
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        ui->minimap->addGraph();
+        QPen pen;
+        pen.setColor(colorList.at(i));
+
+        ui->minimap->graph(i)->setPen(pen);
+        ui->minimap->graph(i)->setLineStyle(QCPGraph::lsNone);
+        ui->minimap->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 3));
+
+        ui->minimap->graph(i)->setData(minimapXdata.at(i), minimapYdata.at(i));
+    }
+
+    for (uint8_t i = devices.length(); i < 2 * devices.length(); i++)
+    {
+        ui->minimap->addGraph();
+        QPen pen;
+        pen.setColor(colorList.at(i - devices.length()));
+
+        ui->minimap->graph(i)->setPen(pen);
+        ui->minimap->graph(i)->setLineStyle(QCPGraph::lsNone);
+        ui->minimap->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCross, 4));
+
+        ui->minimap->graph(i)->addData(mission->target.at(i - devices.length())->location[0],
+                mission->target.at(i - devices.length())->location[1]);
+    }
 
     ui->minimap->rescaleAxes(true);
     ui->minimap->xAxis->scaleRange(1.1, ui->minimap->xAxis->range().center());
@@ -445,9 +480,10 @@ void MainWindow::updateMap()
     for (uint8_t i = 0; i < devices.length(); i++)
     {
         devices.at(i)->getLocation(&x, &y, &z);
-        ui->map->graph(i + 1)->addData(x, y);
-        minimapXdata[i] = devices.at(i)->states[0] - devices.at(0)->states[0];
-        minimapYdata[i] = devices.at(i)->states[1] - devices.at(0)->states[1];
+        ui->map->graph(i)->addData(x, y);
+        minimapXdata[i][0] = devices.at(i)->states[0] - devices.at(0)->states[0];
+        minimapYdata[i][0] = devices.at(i)->states[1] - devices.at(0)->states[1];
+        ui->minimap->graph(i)->setData(minimapXdata.at(i), minimapYdata.at(i));
     }
 
     ui->map->rescaleAxes(true);
@@ -455,7 +491,6 @@ void MainWindow::updateMap()
     ui->map->yAxis->scaleRange(1.1, ui->map->yAxis->range().center());
     ui->map->replot();
 
-    ui->minimap->graph(1)->setData(minimapXdata, minimapYdata);
     ui->minimap->rescaleAxes(true);
     ui->minimap->xAxis->scaleRange(1.1, ui->minimap->xAxis->range().center());
     ui->minimap->yAxis->scaleRange(1.1, ui->minimap->yAxis->range().center());
@@ -541,6 +576,23 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
     {
     case CONNECTION:
     {
+        if (mmsg->payLoad.connectionResult.valid == 0)
+        {
+            consoleStr = TIME_STAMP + QString("Controller [%1] refused connection.").arg(mmsg->ID);
+            ui->console->append(consoleStr);
+            break;
+        }
+
+        for (uint8_t i = 0; i < devices.length(); i++)
+        {
+            if (devices.at(i)->deviceID == ID)
+            {
+                UAVDevice *temp = devices.at(i);
+                consoleStr = TIME_STAMP + QString("Reconnected to device [%1].").arg(temp->deviceID);
+                ui->console->append(consoleStr);
+                break;
+            }
+        }
         for (uint8_t i = 0; i < devicesWaitForValid.length(); i++)
         {
             if (devicesWaitForValid.at(i)->deviceID == ID)
@@ -551,6 +603,7 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
                                              temp->modelPtr->modelName,
                                              temp->controllerIP.toString(),
                                              temp->controllerPort);
+                addDeviceDialog->incrementDeviceID(devices.length());
                 missionDialog->addNewItem(temp->deviceID, temp->modelPtr->modelName);
                 devicesWaitForValid.removeAt(i);
                 consoleStr = TIME_STAMP + QString("Connected to device [%1].").arg(temp->deviceID);
@@ -580,6 +633,26 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
     }
 }
 
+void MainWindow::on_reconnectMessageReceived()
+{
+    ClientToController msg;
+    msg.type = MESSAGE_TYPE::CONNECTION;
+    msg.payLoad.connectionRequest.clientIP = static_cast<uint32_t>(QHostAddress(g_setting.clientIP).toIPv4Address());
+    msg.payLoad.connectionRequest.clientPort = g_setting.clientPort;
+
+    foreach (UAVDevice *device, devices)
+    {
+        QHostAddress controllerAddress = QHostAddress(device->controllerIP);
+
+        msg.ID = device->deviceID;
+        msg.payLoad.connectionRequest.modelID = device->modelID;
+        msg.payLoad.connectionRequest.nModelState = device->modelPtr->nModelState;
+        msg.payLoad.connectionRequest.nModelControl = device->modelPtr->nModelControl;
+
+        sender->writeDatagram((char *)&msg, sizeof(msg), controllerAddress, device->controllerPort);
+    }
+}
+
 void MainWindow::on_plotTimerTimeout()
 {
     updateMap();
@@ -592,7 +665,7 @@ void MainWindow::on_controlTimerTimeout()
 
 void MainWindow::on_actionShow_All_Models_triggered()
 {
-    modelViewDialog->exec();
+    modelViewDialog->show();
 }
 
 void MainWindow::on_actionSet_triggered()
@@ -603,7 +676,7 @@ void MainWindow::on_actionSet_triggered()
 
 void MainWindow::on_actionShow_All_Devices_triggered()
 {
-    deviceViewDialog->exec();
+    deviceViewDialog->show();
 }
 
 void MainWindow::on_actionAbout_triggered()
@@ -619,7 +692,6 @@ void MainWindow::on_actionAdd_Model_triggered()
 
 void MainWindow::on_actionAdd_Device_triggered()
 {
-    addDeviceDialog->incrementDeviceID(devices.length());
     addDeviceDialog->exec();
 }
 

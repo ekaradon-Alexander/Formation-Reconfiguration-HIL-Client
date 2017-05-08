@@ -2,6 +2,9 @@
 <ui version="4.0">
  <class>DeviceViewDialog</class>
  <widget class="QDialog" name="DeviceViewDialog">
+  <property name="windowModality">
+   <enum>Qt::NonModal</enum>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -16,6 +19,13 @@
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
     <widget class="QTableWidget" name="viewTableWidget"/>
+   </item>
+   <item row="1" column="0">
+    <widget class="QPushButton" name="reconnectPushButton">
+     <property name="text">
+      <string>Reconnect All Devices</string>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>

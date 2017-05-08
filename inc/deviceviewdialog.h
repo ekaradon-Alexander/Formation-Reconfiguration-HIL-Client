@@ -18,6 +18,12 @@ public:
 public:
     void addNewItem(uint8_t ID, QString modelName, QString IP, uint16_t port);
 
+signals:
+    void sendReconnectButton(void);
+
+private slots:
+    void on_reconnectPushButton_clicked();
+
 private:
     Ui::DeviceViewDialog *ui;
 };
