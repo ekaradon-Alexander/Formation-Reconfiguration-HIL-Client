@@ -8,8 +8,10 @@
 
 #define TIME_STAMP ("[" + QDateTime::currentDateTime().toString("mm:ss") + "] ")
 
-#define MAX_STATE_COUNT 6
-#define MAX_CONTROL_COUNT 4
+#define MAX_CONTROL_NUMBER      3
+#define MAX_STATE_NUMBER        6
+#define LOC_STATE_NUMBER        3       // location state number = 3 (x, y, z)
+#define MAX_DEVICE_NUMBER       10
 
 enum TASK_STATUS
 {
@@ -27,6 +29,7 @@ typedef struct _Setting
     QString clientIP;
     uint16_t plottingTime;
     uint16_t controlTime;
+    QString outputDir;
 } Setting;
 
 extern TASK_STATUS g_status;

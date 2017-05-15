@@ -11,6 +11,7 @@
 #include <QDebug>
 #include <QProcess>
 #include <QMessageBox>
+#include <QFile>
 
 #include <adddevicedialog.h>
 #include <addmodeldialog.h>
@@ -49,6 +50,9 @@ private:
     QTimer *plotTimer;
     QTimer *controlTimer;
 
+    QTimer *recorderTimer;
+    uint64_t recorderTimerTickCount;
+
     QVector<QTimer *> modelTimers;
 
     AddDeviceDialog *addDeviceDialog;
@@ -76,6 +80,11 @@ private:
 
     QVector<QColor> colorList;
 
+    QFile *outputFile;
+    QTextStream *os;
+
+    float devicePredictLoc[MAX_DEVICE_NUMBER][PREDICT_HORIZON][LOC_STATE_NUMBER];
+
 private:    // about system state
     void stateNoModel(void);
     void stateNoDevice(void);
@@ -99,14 +108,18 @@ private slots:
                              QString modelPath, QString modelName);
     void on_newDevAdded(uint8_t ID, uint8_t model, QString IP, uint16_t port);
     void on_newSettingReceived(uint16_t clientPort, QString clientIP,
-                               uint16_t plittingTime, uint16_t controlTime);
+                               uint16_t plittingTime, uint16_t controlTime,
+                               QString outputDir);
     void on_newMissionReceived(QVector<uint8_t> initialID, QVector<QString> initialData,
+                               float targetCenterVelocy,
+                               float targetCenterDirection,
                                QVector<uint8_t> targetID, QVector<QString> targetData);
     void on_controllerMessageReceived(QByteArray msg);
     void on_reconnectMessageReceived(void);
 
     void on_plotTimerTimeout();
     void on_controlTimerTimeout();
+    void on_recorderTimerTimeout();
 
     void on_actionShow_All_Models_triggered();
     void on_actionShow_All_Devices_triggered();

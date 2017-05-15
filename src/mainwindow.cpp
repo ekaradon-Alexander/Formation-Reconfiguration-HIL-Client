@@ -31,8 +31,8 @@ MainWindow::MainWindow(QWidget *parent) :
             this, SLOT(on_newDevAdded(uint8_t, uint8_t, QString, uint16_t)));
 
     settingDialog = new SettingDialog(this);
-    connect(settingDialog, SIGNAL(sendSettingData(uint16_t, QString, uint16_t, uint16_t)),
-            this, SLOT(on_newSettingReceived(uint16_t, QString, uint16_t, uint16_t)));
+    connect(settingDialog, SIGNAL(sendSettingData(uint16_t, QString, uint16_t, uint16_t, QString)),
+            this, SLOT(on_newSettingReceived(uint16_t, QString, uint16_t, uint16_t, QString)));
 
     contactModel = new QProcess();
 
@@ -42,8 +42,8 @@ MainWindow::MainWindow(QWidget *parent) :
             this, SLOT(on_reconnectMessageReceived()));
 
     missionDialog = new MissionDialog(this);
-    connect(missionDialog, SIGNAL(sendNewMissionData(QVector<uint8_t>, QVector<QString>, QVector<uint8_t>, QVector<QString>)),
-            this, SLOT(on_newMissionReceived(QVector<uint8_t>, QVector<QString>, QVector<uint8_t>, QVector<QString>)));
+    connect(missionDialog, SIGNAL(sendNewMissionData(QVector<uint8_t>, QVector<QString>, float, float, QVector<uint8_t>, QVector<QString>)),
+            this, SLOT(on_newMissionReceived(QVector<uint8_t>, QVector<QString>, float, float, QVector<uint8_t>, QVector<QString>)));
 
     sender = new QUdpSocket();
     mission = new Mission();
@@ -62,7 +62,13 @@ MainWindow::MainWindow(QWidget *parent) :
     //    controlTimer->setInterval(500);
     connect(controlTimer, SIGNAL(timeout()), this, SLOT(on_controlTimerTimeout()));
 
-    ui->height->xAxis->setVisible(false);
+    recorderTimerTickCount = 0;
+    recorderTimer = new QTimer();
+    recorderTimer->setInterval(100);
+    connect(recorderTimer, SIGNAL(timeout()), this, SLOT(on_recorderTimerTimeout()));
+    ui->timer->setStyleSheet("font: bold; color: black;");
+    ui->timer->display("0.0 sec");
+
     stateNoModel();
 }
 
@@ -211,12 +217,14 @@ void MainWindow::on_newDevAdded(uint8_t deviceID, uint8_t modelID,
  * @param clientIP      client IP in setting window
  */
 void MainWindow::on_newSettingReceived(uint16_t clientPort, QString clientIP,
-                                       uint16_t plottingTime, uint16_t controlTime)
+                                       uint16_t plottingTime, uint16_t controlTime,
+                                       QString outputDir)
 {
     g_setting.clientPort = clientPort;
     g_setting.clientIP = clientIP;
     g_setting.plottingTime = plottingTime;
     g_setting.controlTime = controlTime;
+    g_setting.outputDir = outputDir;
 }
 
 /**
@@ -227,6 +235,8 @@ void MainWindow::on_newSettingReceived(uint16_t clientPort, QString clientIP,
  * @param targetData
  */
 void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QString> initialData,
+                                       float targetCenterVelocy,
+                                       float targetCenterDirection,
                                        QVector<uint8_t> targetID, QVector<QString> targetData)
 {
     for (uint8_t i = 0; i < initialID.length(); i++)
@@ -288,6 +298,7 @@ void MainWindow::on_newMissionReceived(QVector<uint8_t> initialID, QVector<QStri
         mission->updateMissionItem(deviceID, initState, targetState);
     }
 
+    mission->updateMissionCenter(targetCenterVelocy, targetCenterDirection);
     uploadMission();
     stateReady();
 }
@@ -348,7 +359,7 @@ bool MainWindow::validNewModel(uint8_t nModelState, uint8_t nModelControl, QStri
     QString proStr;
 
     proStr = modelPath + " ";
-    for (uint8_t i = 0; i < nModelState + nModelControl + 1; i++)
+    for (uint8_t i = 0; i < nModelState + nModelControl; i++)
     {
         proStr += (QString::number(0) + " ");
     }
@@ -369,14 +380,14 @@ void MainWindow::sendValidNewDevice(UAVDevice *device)
     QHostAddress controllerAddress = QHostAddress(device->controllerIP);
     ClientToController msg;
 
-    msg.type = MESSAGE_TYPE::CONNECTION;
+    msg.type = CLIENT_TO_CONTROLLER_MESSAGE_TYPE::CL2CO_CONNECTION;
     msg.ID = device->deviceID;
 
     msg.payLoad.connectionRequest.clientIP = static_cast<uint32_t>(QHostAddress(g_setting.clientIP).toIPv4Address());
     msg.payLoad.connectionRequest.clientPort = g_setting.clientPort;
     msg.payLoad.connectionRequest.modelID = device->modelID;
-    msg.payLoad.connectionRequest.nModelState = device->modelPtr->nModelState;
-    msg.payLoad.connectionRequest.nModelControl = device->modelPtr->nModelControl;
+    msg.payLoad.connectionRequest.nState = device->modelPtr->nModelState;
+    msg.payLoad.connectionRequest.nControl = device->modelPtr->nModelControl;
     sender->writeDatagram((char *)&msg, sizeof(msg), controllerAddress, device->controllerPort);
 }
 
@@ -401,8 +412,8 @@ void MainWindow::initMap(void)
         pen.setColor(colorList.at(i));
 
         ui->map->graph(i)->setPen(pen);
-        ui->map->graph(i)->addData(mission->initial.at(i)->location[0],
-                mission->initial.at(i)->location[1]);
+        ui->map->graph(i)->addData(mission->initial.at(i)->state[0],
+                mission->initial.at(i)->state[1]);
         ui->map->graph(i)->setLineStyle(QCPGraph::lsNone);
         ui->map->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 1));
     }
@@ -414,8 +425,8 @@ void MainWindow::initMap(void)
         pen.setColor(colorList.at(i - devices.length()));
 
         ui->map->graph(i)->setPen(pen);
-        ui->map->graph(i)->addData(mission->initial.at(i - devices.length())->location[0],
-                mission->initial.at(i - devices.length())->location[1]);
+        ui->map->graph(i)->addData(mission->initial.at(i - devices.length())->state[0],
+                mission->initial.at(i - devices.length())->state[1]);
         ui->map->graph(i)->setLineStyle(QCPGraph::lsNone);
         ui->map->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 7));
     }
@@ -435,10 +446,6 @@ void MainWindow::initMap(void)
     {
         minimapXdata[i].resize(1);
         minimapYdata[i].resize(1);
-        minimapXdata[i][0] = (mission->initial.at(i)->location[0] -
-                mission->initial.at(0)->location[0]);
-        minimapYdata[i][0] = (mission->initial.at(i)->location[1] -
-                mission->initial.at(0)->location[1]);
     }
 
     for (uint8_t i = 0; i < devices.length(); i++)
@@ -450,6 +457,9 @@ void MainWindow::initMap(void)
         ui->minimap->graph(i)->setPen(pen);
         ui->minimap->graph(i)->setLineStyle(QCPGraph::lsNone);
         ui->minimap->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 3));
+
+        minimapXdata[i][0] = (mission->initial.at(i)->state[0] - mission->initial.at(0)->state[0]);
+        minimapYdata[i][0] = (mission->initial.at(i)->state[1] - mission->initial.at(0)->state[1]);
 
         ui->minimap->graph(i)->setData(minimapXdata.at(i), minimapYdata.at(i));
     }
@@ -464,8 +474,10 @@ void MainWindow::initMap(void)
         ui->minimap->graph(i)->setLineStyle(QCPGraph::lsNone);
         ui->minimap->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCross, 4));
 
-        ui->minimap->graph(i)->addData(mission->target.at(i - devices.length())->location[0],
-                mission->target.at(i - devices.length())->location[1]);
+        ui->minimap->graph(i)->addData(mission->target.at(i - devices.length())->offsetLocation[0] -
+                mission->target.at(0)->offsetLocation[0],
+                mission->target.at(i - devices.length())->offsetLocation[1] -
+                mission->target.at(0)->offsetLocation[1]);
     }
 
     ui->minimap->rescaleAxes(true);
@@ -477,10 +489,15 @@ void MainWindow::initMap(void)
 void MainWindow::updateMap()
 {
     float x, y, z;
+
     for (uint8_t i = 0; i < devices.length(); i++)
     {
         devices.at(i)->getLocation(&x, &y, &z);
         ui->map->graph(i)->addData(x, y);
+    }
+
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
         minimapXdata[i][0] = devices.at(i)->states[0] - devices.at(0)->states[0];
         minimapYdata[i][0] = devices.at(i)->states[1] - devices.at(0)->states[1];
         ui->minimap->graph(i)->setData(minimapXdata.at(i), minimapYdata.at(i));
@@ -502,27 +519,31 @@ void MainWindow::uploadMission(void)
     QHostAddress controllerAddress;
     ClientToController msg;
 
-    msg.type = MESSAGE_TYPE::MISSION;
+    msg.type = CLIENT_TO_CONTROLLER_MESSAGE_TYPE::CL2CO_MISSION;
 
     for (uint8_t i = 0; i < devices.length(); i++)
     {
         controllerAddress = QHostAddress(devices.at(i)->controllerIP);
 
+        msg.payLoad.missionInfo.nDevices = devices.length();
         msg.ID = devices.at(i)->deviceID;
-        msg.payLoad.targetInfo.nDevices = devices.length();
 
         for (uint8_t j = 0; j < mission->target.length(); j++)
         {
-            if (msg.ID == mission->target.at(j)->ID)
+            if (devices.at(i)->deviceID == mission->target.at(j)->ID)
             {
-                msg.payLoad.targetInfo.nTargetState = mission->target.at(j)->length;
-                for (uint8_t k = 0; k < mission->target.at(j)->length; k++)
+                for (uint8_t k = 0; k < LOC_STATE_NUMBER; k++)
                 {
-                    msg.payLoad.targetInfo.targetStates[k] = mission->target.at(j)->location[k];
+                    msg.payLoad.missionInfo.targetOffsetLocation[k]
+                            = mission->target.at(j)->offsetLocation[k]
+                            - mission->targetCenterLocation[k];
                 }
                 break;
             }
         }
+
+        msg.payLoad.missionInfo.targetVelocy = mission->targetCenterVelocy;
+        msg.payLoad.missionInfo.targetDirection = mission->targetCenterDirection;
 
         sender->writeDatagram((char *)&msg, sizeof(msg), controllerAddress,
                               devices.at(i)->controllerPort);
@@ -533,33 +554,52 @@ void MainWindow::broadcastStates(void)
 {
     QHostAddress controllerAddress;
     ClientToController msg;
+    float x, y, z;
+    float centerLoc[LOC_STATE_NUMBER] = { 0 };
 
-    msg.type = MESSAGE_TYPE::CONTROL;
-    uint8_t centerIndex;
-
-    for (uint8_t i = 0; i < devices.length(); i++)
+    // broadcast predict locations
+    msg.type = CLIENT_TO_CONTROLLER_MESSAGE_TYPE::CL2CO_CONTROL_MSG_PRED_LOC;
+    for (uint8_t i = 0; i < devices.length(); i++)     // send each uav's predict loc
     {
-        if (devices.at(i)->deviceID == 1)
+        memcpy(msg.payLoad.uavPredictLocation.predictedLocation,
+               devicePredictLoc[i],
+               sizeof(float) * PREDICT_HORIZON * LOC_STATE_NUMBER);
+        msg.payLoad.uavPredictLocation.deviceID = devices.at(i)->deviceID;
+        foreach (UAVDevice *devAddr, devices)   // send to each uav
         {
-            centerIndex = i;
+            msg.ID = devAddr->deviceID;
+            controllerAddress = QHostAddress(devAddr->controllerIP);
+            sender->writeDatagram((char *)&msg, sizeof(msg),
+                                  controllerAddress, devAddr->controllerPort);
         }
     }
 
-    for (uint8_t i = 0; i < devices.length(); i++)
+    // calc center location
+    foreach (UAVDevice *dev, devices)
     {
-        controllerAddress = QHostAddress(devices.at(i)->controllerIP);
+        dev->getLocation(&x, &y, &z);
+        centerLoc[0] += x;
+        centerLoc[1] += y;
+        centerLoc[2] += z;
+    }
+    centerLoc[0] /= static_cast<float>(devices.length());
+    centerLoc[1] /= static_cast<float>(devices.length());
+    centerLoc[2] /= static_cast<float>(devices.length());
 
-        msg.ID = devices.at(i)->deviceID;
-
-        msg.payLoad.controlRequest.nModelState = devices.at(i)->modelPtr->nModelState;
-        for (uint8_t j = 0; j < msg.payLoad.controlRequest.nModelState; j++)
-        {
-            msg.payLoad.controlRequest.selfStates[j] = devices.at(i)->states[j];
-            msg.payLoad.controlRequest.centerStates[j] = devices.at(centerIndex)->states[j];
-        }
-
-        sender->writeDatagram((char *)&msg, sizeof(msg), controllerAddress,
-                              devices.at(i)->controllerPort);
+    // broadcast control request
+    msg.type = CLIENT_TO_CONTROLLER_MESSAGE_TYPE::CL2CO_CONTROL_REQUEST;
+    foreach (UAVDevice *devAddr, devices)   // send to each uav
+    {
+        memcpy(msg.payLoad.controlRequest.currStates,
+               devAddr->states,
+               sizeof(float) * devAddr->modelPtr->nModelState);
+        memcpy(msg.payLoad.controlRequest.centerLoc,
+               centerLoc,
+               sizeof(float) * LOC_STATE_NUMBER);
+        msg.ID = devAddr->deviceID;
+        controllerAddress = QHostAddress(devAddr->controllerIP);
+        sender->writeDatagram((char *)&msg, sizeof(msg),
+                              controllerAddress, devAddr->controllerPort);
     }
 }
 
@@ -574,7 +614,7 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
     uint8_t ID = mmsg->ID;
     switch (mmsg->type)
     {
-    case CONNECTION:
+    case CO2CL_CONNECTION:
     {
         if (mmsg->payLoad.connectionResult.valid == 0)
         {
@@ -617,16 +657,18 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
             stateNoMission();
         }
     }; break;
-    case CONTROL:
+    case CO2CL_CONTROL_RESULT:
     {
         for (int i = 0; i < devices.length(); i++)
         {
             if (devices.at(i)->deviceID == ID)
             {
-                for (uint8_t j = 0; j < mmsg->payLoad.controlResult.nControllerControl; j++)
+                for (uint8_t j = 0; j < devices.at(i)->modelPtr->nModelControl; j++)
                 {
                     devices.at(i)->controls[j] = mmsg->payLoad.controlResult.controls[j];
                 }
+                memcpy(devicePredictLoc[i], mmsg->payLoad.controlResult.predictLocation,
+                       sizeof(float) * PREDICT_HORIZON * LOC_STATE_NUMBER);
             }
         }
     }; break;
@@ -636,7 +678,7 @@ void MainWindow::on_controllerMessageReceived(QByteArray msg)
 void MainWindow::on_reconnectMessageReceived()
 {
     ClientToController msg;
-    msg.type = MESSAGE_TYPE::CONNECTION;
+    msg.type = CLIENT_TO_CONTROLLER_MESSAGE_TYPE::CL2CO_CONNECTION;
     msg.payLoad.connectionRequest.clientIP = static_cast<uint32_t>(QHostAddress(g_setting.clientIP).toIPv4Address());
     msg.payLoad.connectionRequest.clientPort = g_setting.clientPort;
 
@@ -646,8 +688,8 @@ void MainWindow::on_reconnectMessageReceived()
 
         msg.ID = device->deviceID;
         msg.payLoad.connectionRequest.modelID = device->modelID;
-        msg.payLoad.connectionRequest.nModelState = device->modelPtr->nModelState;
-        msg.payLoad.connectionRequest.nModelControl = device->modelPtr->nModelControl;
+        msg.payLoad.connectionRequest.nState = device->modelPtr->nModelState;
+        msg.payLoad.connectionRequest.nControl = device->modelPtr->nModelControl;
 
         sender->writeDatagram((char *)&msg, sizeof(msg), controllerAddress, device->controllerPort);
     }
@@ -661,6 +703,23 @@ void MainWindow::on_plotTimerTimeout()
 void MainWindow::on_controlTimerTimeout()
 {
     broadcastStates();
+}
+
+void MainWindow::on_recorderTimerTimeout()
+{
+    recorderTimerTickCount++;
+    ui->timer->display(QString::number( static_cast<double>(recorderTimerTickCount) / 10.0,
+                                        'f', 1) + " sec");
+    *os << recorderTimerTickCount << " ";
+    for (uint8_t i = 0; i < devices.length(); i++)
+    {
+        *os << devices.at(i)->states[0] << " ";
+        *os << devices.at(i)->states[1] << " ";
+        *os << devices.at(i)->states[2] << " ";
+    }
+    *os << endl;
+
+    os->flush();
 }
 
 void MainWindow::on_actionShow_All_Models_triggered()
@@ -702,9 +761,22 @@ void MainWindow::on_actionMission_triggered()
 
 void MainWindow::on_actionStart_triggered()
 {
+    QString outputFileDir = g_setting.outputDir + "/"
+            + QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")
+            + ".dat";
+    outputFile = new QFile(outputFileDir);
+    if (!outputFile->open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        QMessageBox::critical(NULL, "Critical", "Can not create output file.");
+        return;
+    }
+    os = new QTextStream(outputFile);
+    consoleStr = TIME_STAMP + "Created output file " + outputFileDir;
+    ui->console->append(consoleStr);
+
     for (uint8_t i = 0; i < devices.length(); i++)
     {
-        devices.at(i)->setStates(mission->initial.at(i)->location);
+        devices.at(i)->setStates(mission->initial.at(i)->state);
     }
 
     for (uint8_t i = 0; i < devices.length(); i++)
@@ -722,6 +794,7 @@ void MainWindow::on_actionStart_triggered()
 
     controlTimer->setInterval(g_setting.controlTime);
     controlTimer->start();
+    recorderTimer->start();
 
     stateSimulation();
 }
@@ -739,9 +812,11 @@ void MainWindow::on_actionStop_triggered()
 
         for (uint8_t i = 0; i < devices.length(); i++)
         {
-            memset(devices.at(i)->controls, 0, sizeof(float) * MAX_CONTROL_COUNT);
+            memset(devices.at(i)->controls, 0, sizeof(float) * MAX_CONTROL_NUMBER);
         }
 
+        recorderTimer->stop();
+        outputFile->close();
         stateStop();
     }
     else if (g_status == TASK_STATUS::STOP)
@@ -750,6 +825,9 @@ void MainWindow::on_actionStop_triggered()
         ui->minimap->clearGraphs();
         minimapXdata.clear();
         minimapYdata.clear();
+        recorderTimerTickCount = 0;
+        ui->timer->display(QString::number( static_cast<double>(recorderTimerTickCount) / 10.0,
+                                            'f', 1));
         stateReady();
     }
 }

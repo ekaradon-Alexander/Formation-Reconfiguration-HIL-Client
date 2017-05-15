@@ -16,7 +16,7 @@ MissionDialog::MissionDialog(QWidget *parent) :
     ui->targetTableWidget->setColumnCount(3);
     ui->targetTableWidget->setHorizontalHeaderItem(0, new QTableWidgetItem("ID"));
     ui->targetTableWidget->setHorizontalHeaderItem(1, new QTableWidgetItem("Model"));
-    ui->targetTableWidget->setHorizontalHeaderItem(2, new QTableWidgetItem("Target status [x, y, h, ...]"));
+    ui->targetTableWidget->setHorizontalHeaderItem(2, new QTableWidgetItem("Target location [x, y, h]"));
     ui->targetTableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 }
 
@@ -68,6 +68,9 @@ void MissionDialog::on_buttonBox_accepted()
         targetID.append(ui->targetTableWidget->item(i, 0)->text().toInt());
         targetData.append(ui->targetTableWidget->item(i, 2)->text());
     }
-    emit sendNewMissionData(initialID, initialData, targetID, targetData);
+    emit sendNewMissionData(initialID, initialData,
+                            ui->targetCenterVelocy->value(),
+                            ui->targetCenterDirection->value(),
+                            targetID, targetData);
 
 }

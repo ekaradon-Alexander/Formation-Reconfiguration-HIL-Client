@@ -16,8 +16,8 @@
 typedef struct
 {
     uint8_t shmCtl;
-    float states[MAX_STATE_COUNT];
-    float controls[MAX_CONTROL_COUNT];
+    float states[MAX_STATE_NUMBER];
+    float controls[MAX_CONTROL_NUMBER];
 } Data;
 
 class UAVDevice : public QObject

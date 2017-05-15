@@ -2,13 +2,16 @@
 #define CONTROLLERCOMMUNICATION_H
 
 #include <inttypes.h>
-#include <common.h>
+#include "common.h"
 
-enum MESSAGE_TYPE
+#define PREDICT_HORIZON         3
+
+enum CONTROLLER_TO_CLIENT_MESSAGE_TYPE
 {
-    CONNECTION,
-    MISSION,
-    CONTROL,
+    CO2CL_CONNECTION,
+    CO2CL_MISSION,
+    CO2CL_CONTROL_MSG_PRED_LOC,
+    CO2CL_CONTROL_RESULT,
 };
 
 /**
@@ -29,18 +32,18 @@ union ControllerToClientPayLoad
     struct
     {
         uint8_t ack;
-    } targetAck;
+    } missionAck;
 
     struct
     {
-        uint8_t nControllerControl;     // number of controls
-        float controls[MAX_CONTROL_COUNT];
+        float controls[MAX_CONTROL_NUMBER];
+        float predictLocation[PREDICT_HORIZON][LOC_STATE_NUMBER];
     } controlResult;
 };
 
 typedef struct _ControllerToClient
 {
-    enum MESSAGE_TYPE type;
+    enum CONTROLLER_TO_CLIENT_MESSAGE_TYPE type;
     uint8_t ID;
     union ControllerToClientPayLoad payLoad;
 } ControllerToClient;
@@ -48,6 +51,15 @@ typedef struct _ControllerToClient
 /**
  * @brief data from client to controller
  */
+
+enum CLIENT_TO_CONTROLLER_MESSAGE_TYPE
+{
+    CL2CO_CONNECTION,
+    CL2CO_MISSION,
+    CL2CO_CONTROL_REQUEST,
+    CL2CO_CONTROL_MSG_PRED_LOC,
+};
+
 union ClientToControllerPayLoad
 {
 #ifdef __cplusplus
@@ -60,29 +72,35 @@ union ClientToControllerPayLoad
         uint32_t clientIP;      // connection result is sent to this IP
         uint16_t clientPort;    // connection result is sent to this port
         uint8_t modelID;          // model of the device
-        uint8_t nModelState;         // number of state
-        uint8_t nModelControl;       // number of control
+        uint8_t nState;         // number of state
+        uint8_t nControl;       // number of control
         // number of state in the CONTROLLER should be less or equal to nModelState
     } connectionRequest;
 
     struct
     {
-        uint8_t nTargetState;
         uint8_t nDevices;
-        float targetStates[MAX_STATE_COUNT];
-    } targetInfo;
+        float targetOffsetLocation[LOC_STATE_NUMBER];
+        float targetVelocy;
+        float targetDirection;
+    } missionInfo;
 
     struct
     {
-        uint8_t nModelState;
-        float selfStates[MAX_STATE_COUNT];
-        float centerStates[MAX_STATE_COUNT];
+        float currStates[MAX_STATE_NUMBER];
+        float centerLoc[LOC_STATE_NUMBER];
     } controlRequest;
+
+    struct
+    {
+        uint8_t deviceID;
+        float predictedLocation[PREDICT_HORIZON][LOC_STATE_NUMBER];
+    } uavPredictLocation;
 };
 
 typedef struct ClientToController
 {
-    enum MESSAGE_TYPE type;
+    enum CLIENT_TO_CONTROLLER_MESSAGE_TYPE type;
     uint8_t ID;
     union ClientToControllerPayLoad payLoad;
 } ClientToController;

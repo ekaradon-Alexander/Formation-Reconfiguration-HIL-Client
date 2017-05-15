@@ -25,6 +25,7 @@ public:
 
 signals:
     void sendNewMissionData(QVector<uint8_t> initialID, QVector<QString> initialData,
+                            float targetCenterVelocy, float targetCenterDirection,
                             QVector<uint8_t> targetID, QVector<QString> targetData);
 
 private slots:

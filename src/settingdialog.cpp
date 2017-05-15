@@ -22,7 +22,8 @@ void SettingDialog::on_buttonBox_accepted()
     emit sendSettingData(static_cast<uint16_t>(ui->port_spinBox->value()),
                          ui->ip_comboBox->currentText(),
                          static_cast<uint16_t>(ui->plotting_spinBox->value()),
-                         static_cast<uint16_t>(ui->control_spinBox->value()));
+                         static_cast<uint16_t>(ui->control_spinBox->value()),
+                         ui->outputDir->text());
 }
 
 void SettingDialog::refreshIPAddress(void)
@@ -61,17 +62,25 @@ void SettingDialog::showEvent(QShowEvent *)
     else
     {
         ui->network_groupBox->setEnabled(false);
-        ui->network_groupBox->setTitle("Network (available before add device)");     
+        ui->network_groupBox->setTitle("Network (available before add device)");
     }
 
     if (g_status == TASK_STATUS::SIMULATION)
     {
         ui->timer_groupBox->setEnabled(false);
-        ui->timer_groupBox->setTitle("Timer (avaliable before start simulation");
+        ui->timer_groupBox->setTitle("Timer (avaliable before start simulation)");
     }
     else
     {
         ui->timer_groupBox->setEnabled(true);
         ui->timer_groupBox->setTitle("Timer");
     }
+}
+
+void SettingDialog::on_outputDir_pushButton_clicked()
+{
+    QString tempOutputPath = QFileDialog::getExistingDirectory(this,
+                                                               tr("Select Output File Directory"),
+                                                               "./");
+    this->ui->outputDir->setText(tempOutputPath);
 }

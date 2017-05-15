@@ -4,6 +4,7 @@
 #include <QDialog>
 #include <common.h>
 #include <QNetworkInterface>
+#include <QFileDialog>
 
 namespace Ui {
 class SettingDialog;
@@ -22,10 +23,13 @@ private:
 
 signals:
     void sendSettingData(uint16_t clientPort, QString clientIP,
-                         uint16_t plottingTime, uint16_t controlTime);
+                         uint16_t plottingTime, uint16_t controlTime,
+                         QString outputDir);
 private slots:
     void on_buttonBox_accepted();
     void on_refresh_pushButton_clicked();
+
+    void on_outputDir_pushButton_clicked();
 
 public:
     void refreshIPAddress(void);
